@@ -10,7 +10,7 @@ import AddOptions from "../view/add/Add";
 import EditOptions from "../view/edit/Edit";
 import { Search, SearchSettings } from '../controller/Search';
 import { f7 } from 'framework7-react';
-
+import FilterOptionsController from '../controller/FilterOptions'
 import {FunctionGroups} from "../controller/add/AddFunction";
 import ContextMenu from '../controller/ContextMenu';
 import { Toolbar } from "../controller/Toolbar";
@@ -29,7 +29,6 @@ class MainPage extends Component {
 
     handleClickToOpenOptions = (opts, showOpts) => {
         f7.popover.close('.document-menu.modal-in', false);
-
         this.setState(state => {
             if ( opts == 'edit' )
                 return {editOptionsVisible: true};
@@ -59,6 +58,11 @@ class MainPage extends Component {
             })
         })();
     };
+
+    // onClickToCloseFilter = () => {
+    //     f7.popover.open('#picker-popover')
+    //     console.log('Close!')
+    // }
 
   render() {
       const appOptions = this.props.storeAppOptions;
@@ -93,6 +97,9 @@ class MainPage extends Component {
                 {
                     !this.state.collaborationVisible ? null :
                         <CollaborationView onclosed={this.handleOptionsViewClosed.bind(this, 'coauth')} />
+                }
+                {
+                    <FilterOptionsController />
                 }
                 <Statusbar />
 
