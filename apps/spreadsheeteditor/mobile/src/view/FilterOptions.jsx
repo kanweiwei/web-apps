@@ -6,12 +6,12 @@ const FilterOptions = (props) => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
     return (
-        <View>
+        <View style={props.style}>
             <Page>
             <Navbar title={_t.textFilterOptions}>
             {Device.phone &&
                 <NavRight>
-                    <Link sheetOpen=".picker__sheet" >
+                    <Link sheetClose=".picker__sheet">
                         <Icon icon='icon-expand-down'/>
                     </Link>
                 </NavRight>
@@ -20,7 +20,7 @@ const FilterOptions = (props) => {
            <List>
                 <ListItem className='buttons'>
                     <Row>
-                        <a className='button no-ripple'>
+                        <a className='button no-ripple' onClick={props.SortTop}>
                             <Icon slot="media" icon="sortdown"></Icon>
                         </a>
                         <a className='button'>
