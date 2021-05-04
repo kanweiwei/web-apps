@@ -1,9 +1,14 @@
-import React, {Fragment, useEffect, Component} from 'react';
+import React, {useEffect,useState} from 'react';
 import FilterOptions from '../../src/view/FilterOptions';
 import { f7,Sheet,Popover } from 'framework7-react';
 import { Device } from '../../../../common/mobile/utils/device';
+import { useTranslation } from 'react-i18next';
 const FilterOptionsController = () => {
-    
+    const { t } = useTranslation();
+    const _t = t('View.Edit', {returnObjects: true});
+
+    const [listValue, setListValue] = useState([])
+    let indChecked = []
     useEffect(() => {
         const onDocumentReady = () => {
             const api = Common.EditorApi.get();
@@ -24,7 +29,7 @@ const FilterOptionsController = () => {
 
     }, [])
 
-    const onApiFilterOptions= (config) => { 
+    const onApiFilterOptions= (config) => {
         let rect = config.asc_getCellCoord(),
         posX = rect.asc_getX() + rect.asc_getWidth() - 9,
         posY = rect.asc_getY() + rect.asc_getHeight() - 9;
@@ -50,6 +55,7 @@ const FilterOptionsController = () => {
             isnumber = null,
             index =0,
             throughIndex = 0,
+            selectedCells = 0,
             arrCells = [],
             idxs = []
 
@@ -64,24 +70,27 @@ const FilterOptionsController = () => {
                 id              : index++,
                 selected        : false,
                 allowSelected   : true,
-                cellvalue       : value ? value : config.textEmptyItem,
-                value           : isnumber ? value : (value.length > 0 ? value: config.textEmptyItem),
+                cellvalue       : value ? value : _t.textEmptyItem,
+                value           : isnumber ? value : (value.length > 0 ? value: _t.textEmptyItem),
                 intval          : isnumber ? parseFloat(value) : undefined,
                 strval          : !isnumber ? value : '',
                 groupid         : '1',
                 check           : idxs[throughIndex],
                 throughIndex    : throughIndex
             })
+            if (idxs[throughIndex]) selectedCells++;
+            ++throughIndex;
         });
+        setListValue(arrCells)
+        indChecked = idxs;
     }
-
     return (
         !Device.phone ?
         <Popover id="picker-popover">
-            <FilterOptions style={{height: '410px'}} SortDown={SortDown}/>
+            <FilterOptions style={{height: '410px'}} SortDown={SortDown} listValue={listValue}/>
         </Popover> :
         <Sheet className="picker__sheet" push >
-            <FilterOptions  SortDown={SortDown}/>
+            <FilterOptions  SortDown={SortDown} listValue={listValue}/>
         </Sheet>
     )
 }

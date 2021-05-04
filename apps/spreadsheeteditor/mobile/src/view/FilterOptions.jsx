@@ -6,6 +6,17 @@ const FilterOptions = (props) => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
     const [check, setCheck] = useState(false)
+    const listValue= props.listValue
+    console.log(listValue)
+
+    const updateCell = () => {
+        let isValid = true;
+        
+    }
+    const listValues = listValue.map((value) => 
+        <ListItem key={value.value} radio checked={updateCell()}>{value.cellvalue}</ListItem>
+    )
+
     return (
         <View style={props.style}>
             <Page>
@@ -32,11 +43,11 @@ const FilterOptions = (props) => {
            </List>
            <List>
                <ListItem>{_t.textClearFilter}</ListItem>
-               <ListItem>{_t.textDeleteFilter}</ListItem>
+               <ListItem id="btn-delete-filter">{_t.textDeleteFilter}</ListItem>
            </List>
            <List>
                <ListItem radio checked={check} onClick={() => setCheck(!check)}>Select All</ListItem>
-               <ListItem radio checked={check} onClick={() => setCheck(!check)}></ListItem>
+               {listValues}
            </List>
             </Page>
         </View>

@@ -401,7 +401,8 @@
             "txtNotUrl": "This field should be a URL in the format \"http://www.example.com\"",
             "textFilterOptions": "Filter Options",
             "textClearFilter": "Clear Options",
-            "textDeleteFilter": "Delete Options"
+            "textDeleteFilter": "Delete Options",
+            "textEmptyItem": "{Blanks}"
         },
         "Settings": {
             "textFindAndReplace": "Find and Replace",
