@@ -5,6 +5,7 @@ import { Device } from '../../../../common/mobile/utils/device';
 const FilterOptions = (props) => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
+    const [check, setCheck] = useState(false)
     return (
         <View style={props.style}>
             <Page>
@@ -20,7 +21,7 @@ const FilterOptions = (props) => {
            <List>
                 <ListItem className='buttons'>
                     <Row>
-                        <a className='button no-ripple' onClick={props.SortTop}>
+                        <a className='button no-ripple' onClick={props.SortDown}>
                             <Icon slot="media" icon="sortdown"></Icon>
                         </a>
                         <a className='button'>
@@ -34,8 +35,8 @@ const FilterOptions = (props) => {
                <ListItem>{_t.textDeleteFilter}</ListItem>
            </List>
            <List>
-               <ListItem radio></ListItem>
-               <ListItem radio></ListItem>
+               <ListItem radio checked={check} onClick={() => setCheck(!check)}>Select All</ListItem>
+               <ListItem radio checked={check} onClick={() => setCheck(!check)}></ListItem>
            </List>
             </Page>
         </View>

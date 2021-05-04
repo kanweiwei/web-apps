@@ -30,22 +30,58 @@ const FilterOptionsController = () => {
         posY = rect.asc_getY() + rect.asc_getHeight() - 9;
         if (Device.phone) { 
             f7.sheet.open('.picker__sheet');
+            setDataFilterCells(config)
         } else {
             let $target = $$('#idx-context-menu-target')
                         .css({left: `${posX}px`, top: `${posY}px`})
             f7.popover.open('#picker-popover',$target)
         }
     }
-    const SortTop = () => {
+    const SortDown = () => {
+        const api = Common.EditorApi.get();
         console.log('Sort')
     }
+
+    const setDataFilterCells = (config) => {
+        function isNumeric(value) {
+            return !isNaN(parseFloat(value)) && isFinite(value);
+        }
+        let value = null,
+            isnumber = null,
+            index =0,
+            throughIndex = 0,
+            arrCells = [],
+            idxs = []
+
+        config.asc_getValues().forEach(function (item) {
+            value = item.asc_getText()
+            isnumber = isNumeric(value)
+            if(idxs[throughIndex] == undefined) {
+                idxs[throughIndex] = item.asc_getVisible();
+            }
+
+            arrCells.push({
+                id              : index++,
+                selected        : false,
+                allowSelected   : true,
+                cellvalue       : value ? value : config.textEmptyItem,
+                value           : isnumber ? value : (value.length > 0 ? value: config.textEmptyItem),
+                intval          : isnumber ? parseFloat(value) : undefined,
+                strval          : !isnumber ? value : '',
+                groupid         : '1',
+                check           : idxs[throughIndex],
+                throughIndex    : throughIndex
+            })
+        });
+    }
+
     return (
         !Device.phone ?
         <Popover id="picker-popover">
-            <FilterOptions style={{height: '410px'}} SortTop={SortTop}/>
+            <FilterOptions style={{height: '410px'}} SortDown={SortDown}/>
         </Popover> :
         <Sheet className="picker__sheet" push >
-            <FilterOptions/>
+            <FilterOptions  SortDown={SortDown}/>
         </Sheet>
     )
 }
