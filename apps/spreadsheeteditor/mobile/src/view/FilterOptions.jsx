@@ -1,24 +1,20 @@
-import React, {Fragment, useState} from 'react';
+import React, {Fragment, useEffect, useState} from 'react';
 import {f7, List, Sheet, ListItem, Icon, Row, Button, Page, Navbar, Segmented, BlockTitle, NavRight, Link, Toggle,View} from 'framework7-react';
 import { useTranslation } from 'react-i18next';
 import { Device } from '../../../../common/mobile/utils/device';
-const FilterOptions = (props) => {
+const FilterOptions = ({style,listValue,selectedCells,SortDown}) => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
-    const [check, setCheck] = useState(false)
-    const listValue= props.listValue
-    console.log(listValue)
-
-    const updateCell = () => {
-        let isValid = true;
-        
+    const [check, setCheck] = useState(true)
+    const updateCell = (e) => {
+        setCheck(!check)
     }
     const listValues = listValue.map((value) => 
-        <ListItem key={value.value} radio checked={updateCell()}>{value.cellvalue}</ListItem>
+        <ListItem key={value.value} name={`filter-cell`} title={value.cellvalue} value={value.value} change={() => updateCell()} radio checked={check}></ListItem>
     )
-
+    console.log(listValue)
     return (
-        <View style={props.style}>
+        <View style={style}>
             <Page>
             <Navbar title={_t.textFilterOptions}>
             {Device.phone &&
@@ -32,7 +28,7 @@ const FilterOptions = (props) => {
            <List>
                 <ListItem className='buttons'>
                     <Row>
-                        <a className='button no-ripple' onClick={props.SortDown}>
+                        <a className='button no-ripple' onClick={SortDown}>
                             <Icon slot="media" icon="sortdown"></Icon>
                         </a>
                         <a className='button'>

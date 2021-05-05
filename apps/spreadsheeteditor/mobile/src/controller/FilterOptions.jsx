@@ -6,8 +6,8 @@ import { useTranslation } from 'react-i18next';
 const FilterOptionsController = () => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
-
     const [listValue, setListValue] = useState([])
+    const [selectedCells, setSelectedCells] = useState(0)
     let indChecked = []
     useEffect(() => {
         const onDocumentReady = () => {
@@ -33,9 +33,9 @@ const FilterOptionsController = () => {
         let rect = config.asc_getCellCoord(),
         posX = rect.asc_getX() + rect.asc_getWidth() - 9,
         posY = rect.asc_getY() + rect.asc_getHeight() - 9;
+        setDataFilterCells(config)
         if (Device.phone) { 
             f7.sheet.open('.picker__sheet');
-            setDataFilterCells(config)
         } else {
             let $target = $$('#idx-context-menu-target')
                         .css({left: `${posX}px`, top: `${posY}px`})
@@ -62,9 +62,7 @@ const FilterOptionsController = () => {
         config.asc_getValues().forEach(function (item) {
             value = item.asc_getText()
             isnumber = isNumeric(value)
-            if(idxs[throughIndex] == undefined) {
-                idxs[throughIndex] = item.asc_getVisible();
-            }
+            if(idxs[throughIndex] == undefined) idxs[throughIndex] = item.asc_getVisible();
 
             arrCells.push({
                 id              : index++,
@@ -80,17 +78,19 @@ const FilterOptionsController = () => {
             })
             if (idxs[throughIndex]) selectedCells++;
             ++throughIndex;
+            setSelectedCells(selectedCells++)
         });
         setListValue(arrCells)
         indChecked = idxs;
+        let $filterCell = $$('[name="filter-cell"]')
     }
     return (
         !Device.phone ?
         <Popover id="picker-popover">
-            <FilterOptions style={{height: '410px'}} SortDown={SortDown} listValue={listValue}/>
+            <FilterOptions style={{height: '410px'}} SortDown={SortDown} listValue={listValue} selectedCells={selectedCells}/>
         </Popover> :
         <Sheet className="picker__sheet" push >
-            <FilterOptions  SortDown={SortDown} listValue={listValue}/>
+            <FilterOptions  SortDown={SortDown} listValue={listValue} selectedCells={selectedCells}/>
         </Sheet>
     )
 }
