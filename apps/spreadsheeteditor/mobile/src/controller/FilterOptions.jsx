@@ -1,13 +1,15 @@
 import React, {useEffect,useState} from 'react';
 import FilterOptions from '../../src/view/FilterOptions';
-import { f7,Sheet,Popover } from 'framework7-react';
+import { f7,Sheet,Popover, ListItem } from 'framework7-react';
 import { Device } from '../../../../common/mobile/utils/device';
 import { useTranslation } from 'react-i18next';
 const FilterOptionsController = () => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
-    const [listValue, setListValue] = useState([])
-    const [selectedCells, setSelectedCells] = useState(0)
+    const [listVal, setListValue] = useState([])
+    const [selectAll, setselectAll] = useState(null)
+    const [che, setChe] = useState(false)
+
     let indChecked = []
     useEffect(() => {
         const onDocumentReady = () => {
@@ -78,19 +80,39 @@ const FilterOptionsController = () => {
             })
             if (idxs[throughIndex]) selectedCells++;
             ++throughIndex;
-            setSelectedCells(selectedCells++)
         });
-        setListValue(arrCells)
         indChecked = idxs;
-        let $filterCell = $$('[name="filter-cell"]')
+
+        const listValues = arrCells.map((value) => 
+        <ListItem key={value.value} value={value.id} name='filter-cell'  title={value.cellvalue} checkbox></ListItem>)
+        setListValue(listValues)
+        const selectAll = <ListItem name='filter-cellAll' checkbox>Select All</ListItem>
+        setselectAll(selectAll)
+
+        let $filterCell = $$('[name="filter-cell"]'),
+            $filterCellAll = $$('[name="filter-cellAll"]')
+            if(selectedCells === arrCells.length) {
+                $filterCellAll.prop('checked', true);
+                $filterCell.prop('checked', true);
+            }
+        $$('.item-checkbox input[type="checkbox"]').on('click', updateCell)
     }
+
+    const updateCell = (e) => {
+        let $filterCell = $$('[name="filter-cellAll"]'),
+            $filterCellAll = $$('[name="filter-cellAll"]'),
+            filterCellChecked = $('[name="filter-cell"]:checked').length,
+            filterCellCheckedAll = $('[name="filter-cell"]').length
+        console.log(e.target.value)
+    }
+
     return (
         !Device.phone ?
         <Popover id="picker-popover">
-            <FilterOptions style={{height: '410px'}} SortDown={SortDown} listValue={listValue} selectedCells={selectedCells}/>
+            <FilterOptions style={{height: '410px'}} SortDown={SortDown} listVal={listVal} selectAll={selectAll}/>
         </Popover> :
         <Sheet className="picker__sheet" push >
-            <FilterOptions  SortDown={SortDown} listValue={listValue} selectedCells={selectedCells}/>
+            <FilterOptions  SortDown={SortDown} listVal={listVal} selectAll={selectAll}/>
         </Sheet>
     )
 }
