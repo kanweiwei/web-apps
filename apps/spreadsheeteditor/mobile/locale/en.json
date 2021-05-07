@@ -402,7 +402,9 @@
             "textFilterOptions": "Filter Options",
             "textClearFilter": "Clear Options",
             "textDeleteFilter": "Delete Options",
-            "textEmptyItem": "{Blanks}"
+            "textEmptyItem": "{Blanks}",
+            "textErrorTitle": "Warning",
+            "textErrorMsg": "You must choose at least one value"
         },
         "Settings": {
             "textFindAndReplace": "Find and Replace",

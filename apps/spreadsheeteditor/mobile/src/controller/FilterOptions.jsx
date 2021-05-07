@@ -8,9 +8,9 @@ const FilterOptionsController = () => {
     const _t = t('View.Edit', {returnObjects: true});
     const [listVal, setListValue] = useState([])
     const [selectAll, setselectAll] = useState(null)
-    const [che, setChe] = useState(false)
-
-    let indChecked = []
+    const [dialogValue, setdialogValue] = useState(null)
+    let indChecked = [],
+        isValid = true
     useEffect(() => {
         const onDocumentReady = () => {
             const api = Common.EditorApi.get();
@@ -88,31 +88,69 @@ const FilterOptionsController = () => {
         setListValue(listValues)
         const selectAll = <ListItem name='filter-cellAll' checkbox>Select All</ListItem>
         setselectAll(selectAll)
-
         let $filterCell = $$('[name="filter-cell"]'),
             $filterCellAll = $$('[name="filter-cellAll"]')
             if(selectedCells === arrCells.length) {
                 $filterCellAll.prop('checked', true);
                 $filterCell.prop('checked', true);
+            } else {
+                arrCells.forEach((item,index) => {
+                    $filterCell.eq(index).prop('checked',idxs[index])
+                })
             }
-        $$('.item-checkbox input[type="checkbox"]').on('click', updateCell)
+        $$('.item-checkbox input[type="checkbox"]').on('click', updateCell.bind(null,config))
     }
 
-    const updateCell = (e) => {
-        let $filterCell = $$('[name="filter-cellAll"]'),
+    const updateCell = (config, e) => {
+        const api = Common.EditorApi.get(); 
+        let $filterCell = $$('[name="filter-cell"]'),
             $filterCellAll = $$('[name="filter-cellAll"]'),
-            filterCellChecked = $('[name="filter-cell"]:checked').length,
-            filterCellCheckedAll = $('[name="filter-cell"]').length
-        console.log(e.target.value)
+            filterCellChecked = $$('[name="filter-cell"]:checked').length,
+            filterCellCheckedAll = $$('[name="filter-cell"]').length
+        if(e.target.name == "filter-cell") {
+            if (filterCellChecked < filterCellCheckedAll) {
+                $filterCellAll.prop('checked', false)
+                filterCellChecked === 0 ? setdialogValue(true) : setdialogValue(false)
+            } else if (filterCellChecked === filterCellCheckedAll) {
+                $filterCellAll.prop('checked', true);
+            }
+            indChecked[e.target.value] = e.target.checked;
+        }
+        if(e.target.name == "filter-cellAll") {
+            let checkAll = false;
+            if(e.target.checked) {
+                $filterCell.prop('checked', true)
+                setdialogValue(false)
+                checkAll = true
+            } else {
+                $filterCell.prop('checked', false)
+                checkAll = false;
+                filterCellChecked = 0
+                setdialogValue(true)
+            }
+            indChecked.forEach((item,index) => {
+                indChecked[index] = checkAll
+            })
+        }
+        if(isValid) {
+            let arrCells = config.asc_getValues()
+            arrCells.forEach((item, index) => {
+                item.asc_setVisible(indChecked[index])
+            })
+            config.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
+            api.asc_applyAutoFilter(config);
+        }
     }
 
     return (
         !Device.phone ?
         <Popover id="picker-popover">
-            <FilterOptions style={{height: '410px'}} SortDown={SortDown} listVal={listVal} selectAll={selectAll}/>
+            <FilterOptions style={{height: '410px'}} SortDown={SortDown} listVal={listVal} 
+            selectAll={selectAll} dialogValue={dialogValue}/>
         </Popover> :
         <Sheet className="picker__sheet" push >
-            <FilterOptions  SortDown={SortDown} listVal={listVal} selectAll={selectAll}/>
+            <FilterOptions  SortDown={SortDown} listVal={listVal} 
+            selectAll={selectAll} dialogValue={dialogValue}/>
         </Sheet>
     )
 }
