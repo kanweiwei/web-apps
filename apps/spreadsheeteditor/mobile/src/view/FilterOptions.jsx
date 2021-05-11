@@ -2,7 +2,7 @@ import React, {Fragment, useEffect, useState} from 'react';
 import {f7, List, Sheet, ListItem, Icon, Row, Button, Page, Navbar, Segmented, BlockTitle, NavRight, Link, Toggle,View} from 'framework7-react';
 import { useTranslation } from 'react-i18next';
 import { Device } from '../../../../common/mobile/utils/device';
-const FilterOptions = ({style,listVal,selectAll,dialogValue,SortDown}) => {
+const FilterOptions = ({style,listVal,selectAll,dialogValue,onSort,onClearFilter,onDeleteFilter}) => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
     const Closes = () => {
@@ -32,18 +32,18 @@ const FilterOptions = ({style,listVal,selectAll,dialogValue,SortDown}) => {
            <List>
                 <ListItem className='buttons'>
                     <Row>
-                        <a className='button no-ripple' onClick={SortDown}>
+                        <a className='button no-ripple' onClick={() => onSort('sortdown')}>
                             <Icon slot="media" icon="sortdown"></Icon>
                         </a>
-                        <a className='button'>
+                        <a className='button' onClick={() => onSort('sortup')}>
                             <Icon slot="media" icon="sortup"></Icon>
                         </a>
                     </Row>
                 </ListItem>
            </List>
-           <List>
-               <ListItem>{_t.textClearFilter}</ListItem>
-               <ListItem id="btn-delete-filter">{_t.textDeleteFilter}</ListItem>
+           <List className="display-flex justify-content-center">
+               <ListItem className=""  disabled id='button-clear-filter' onClick={() => onClearFilter()}>{_t.textClearFilter}</ListItem>
+               <ListItem className="text-color-red" id='button-delete-filter' onClick={() => onDeleteFilter()} id="btn-delete-filter">{_t.textDeleteFilter}</ListItem>
            </List>
            <List>
            {selectAll}
