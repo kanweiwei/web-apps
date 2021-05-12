@@ -42,7 +42,7 @@ const FilterOptions = ({style,listVal,selectAll,dialogValue,onSort,onClearFilter
                 </ListItem>
            </List>
            <List className="display-flex justify-content-center">
-               <ListItem className=""  disabled id='button-clear-filter' onClick={() => onClearFilter()}>{_t.textClearFilter}</ListItem>
+               <ListItem   disabled id='button-clear-filter' onClick={() => onClearFilter()}>{_t.textClearFilter}</ListItem>
                <ListItem className="text-color-red" id='button-delete-filter' onClick={() => onDeleteFilter()} id="btn-delete-filter">{_t.textDeleteFilter}</ListItem>
            </List>
            <List>
