@@ -9,8 +9,16 @@ const FilterOptionsController = () => {
     const [configFilter, setConfig] = useState(null)
     const [listVal, setListValue] = useState([])
     const [selectAll, setselectAll] = useState(null)
-    const [dialogValue, setdialogValue] = useState(null)
     const [arrayChecked, setChecked] = useState([])
+    const dialog = f7.dialog.create({
+        title: _t.textErrorTitle,
+        text: _t.textErrorMsg,
+        buttons: [
+            {
+                text: 'OK',
+            }
+        ]
+    })
     let indChecked = [],
         isValid = true
     useEffect(() => {
@@ -32,8 +40,6 @@ const FilterOptionsController = () => {
         }
 
     }, [])
-
-
     const onApiFilterOptions= (config) => {
         let rect = config.asc_getCellCoord(),
         posX = rect.asc_getX() + rect.asc_getWidth() - 9,
@@ -48,6 +54,7 @@ const FilterOptionsController = () => {
                         .css({left: `${posX}px`, top: `${posY}px`})
             f7.popover.open('#picker-popover',$target)
         }
+        $$('#picker-popover').on('popover:closed', () => $$('[name="filter-cell"]:checked').length > 0 ? null : dialog.open())
     }
     const onSort = (type) => {
         const api = Common.EditorApi.get();
@@ -63,7 +70,6 @@ const FilterOptionsController = () => {
         setChecked(arrayChecked)
         $$('[name="filter-cell"]').prop('checked', true);
         $$('[name="filter-cellAll"]').prop('checked', true);
-        setdialogValue(false)
     }
 
     const onDeleteFilter = () => {
@@ -134,7 +140,6 @@ const FilterOptionsController = () => {
             }
         $$('.item-checkbox input[type="checkbox"]').on('click', updateCell.bind(null,config))
     }
-
     const updateCell = (config, e) => {
         const api = Common.EditorApi.get(); 
         let $filterCell = $$('[name="filter-cell"]'),
@@ -144,7 +149,6 @@ const FilterOptionsController = () => {
         if(e.target.name == "filter-cell") {
             if (filterCellChecked < filterCellCheckedAll) {
                 $filterCellAll.prop('checked', false)
-                filterCellChecked === 0 ? setdialogValue(true) : setdialogValue(false)
             } else if (filterCellChecked === filterCellCheckedAll) {
                 $filterCellAll.prop('checked', true);
             }
@@ -154,19 +158,19 @@ const FilterOptionsController = () => {
             let checkAll = false;
             if(e.target.checked) {
                 $filterCell.prop('checked', true)
-                setdialogValue(false)
                 checkAll = true
             } else {
                 $filterCell.prop('checked', false)
                 checkAll = false;
+                isValid = false;
                 filterCellChecked = 0
-                setdialogValue(true)
             }
             indChecked.forEach((item,index) => {
                 indChecked[index] = checkAll
             })
         }
         setChecked(indChecked)
+        filterCellChecked === 0 ? isValid = false : isValid = true
         if(isValid) {
             let arrCells = config.asc_getValues()
             arrCells.forEach((item, index) => {
@@ -177,16 +181,15 @@ const FilterOptionsController = () => {
         }
         setClearDisable(config)
     }
-
     return (
         !Device.phone ?
-        <Popover id="picker-popover">
+        <Popover id="picker-popover" >
             <FilterOptions style={{height: '410px'}} onSort={onSort} listVal={listVal} 
-            selectAll={selectAll} dialogValue={dialogValue} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter} />
+            selectAll={selectAll} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter} />
         </Popover> :
         <Sheet className="picker__sheet" push >
             <FilterOptions  onSort={onSort} listVal={listVal} 
-            selectAll={selectAll} dialogValue={dialogValue} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter}/>
+            selectAll={selectAll} dialog={dialog} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter}/>
         </Sheet>
     )
 }
