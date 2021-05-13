@@ -24,7 +24,7 @@ const FilterOptions = ({style,listVal,selectAll,onSort,dialog,onClearFilter,onDe
            <List>
                 <ListItem className='buttons'>
                     <Row>
-                        <a className='button no-ripple' onClick={() => onSort('sortdown')}>
+                        <a className='button' onClick={() => onSort('sortdown')}>
                             <Icon slot="media" icon="sortdown"></Icon>
                         </a>
                         <a className='button' onClick={() => onSort('sortup')}>

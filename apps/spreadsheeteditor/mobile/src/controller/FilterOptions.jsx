@@ -60,7 +60,6 @@ const FilterOptionsController = () => {
         const api = Common.EditorApi.get();
         api.asc_sortColFilter(type == 'sortdown' ? Asc.c_oAscSortOptions.Ascending : Asc.c_oAscSortOptions.Descending, configFilter.asc_getCellId(), configFilter.asc_getDisplayName(), undefined, true);
     }
-
     const onClearFilter = () => {
         const api = Common.EditorApi.get();
         if(api) api.asc_clearFilter();
@@ -79,6 +78,7 @@ const FilterOptionsController = () => {
         if(api) {
             api.asc_changeAutoFilter(tablename, Asc.c_oAscChangeFilterOptions.filter, false);
             f7.sheet.close('.picker__sheet');
+            f7.popover.close('#picker-popover')
         }
     }
 
@@ -183,7 +183,7 @@ const FilterOptionsController = () => {
     }
     return (
         !Device.phone ?
-        <Popover id="picker-popover" >
+        <Popover id="picker-popover" className="popover__titled">
             <FilterOptions style={{height: '410px'}} onSort={onSort} listVal={listVal} 
             selectAll={selectAll} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter} />
         </Popover> :

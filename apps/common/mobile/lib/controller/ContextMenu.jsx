@@ -103,16 +103,15 @@ class ContextMenuController extends Component {
     }
 
     onApiOpenContextMenu(x, y) {
-        if ( !this.state.opened ) {
+        if ( !this.state.opened && !$$('.popover.modal-in,.sheet-modal.modal-in').length) {
             this.setState({
                 items: this.initMenuItems(),
                 extraItems: this.initExtraItems()
             });
 
-            if ( this.state.items.length > 0 ) {
+            if ( this.state.items.length > 0) {
                 this.$targetEl.css({left: `${x}px`, top: `${y}px`});
                 const popover = f7.popover.open(idContextMenuElement, idCntextMenuTargetElement);
-
                 if (Device.android)
                     this.offsetPopoverTop(popover);
 
