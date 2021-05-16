@@ -8,7 +8,6 @@ const FilterOptionsController = () => {
     const _t = t('View.Edit', {returnObjects: true});
     const [configFilter, setConfig] = useState(null)
     const [listVal, setListValue] = useState([])
-    const [selectAll, setselectAll] = useState(null)
     const [arrayChecked, setChecked] = useState([])
     const dialog = f7.dialog.create({
         title: _t.textErrorTitle,
@@ -26,7 +25,7 @@ const FilterOptionsController = () => {
             const api = Common.EditorApi.get();
             api.asc_registerCallback('asc_onSetAFDialog',onApiFilterOptions);
         }
-
+        
         if ( !Common.EditorApi ) {
             Common.Notifications.on('document:ready',onDocumentReady);
         } else {
@@ -81,7 +80,6 @@ const FilterOptionsController = () => {
             f7.popover.close('#picker-popover')
         }
     }
-
     const setClearDisable = (config) => {
         let $clearFilter = $$("#button-clear-filter");
         let arr = config.asc_getValues();
@@ -100,7 +98,6 @@ const FilterOptionsController = () => {
             selectedCells = 0,
             arrCells = [],
             idxs = []
-
             config.asc_getValues().forEach(function (item) {
             value = item.asc_getText()
             isnumber = isNumeric(value)
@@ -121,75 +118,71 @@ const FilterOptionsController = () => {
             if (idxs[throughIndex]) selectedCells++;
             ++throughIndex;
         });
+        setListValue(arrCells)
         indChecked = idxs;
         setChecked(indChecked)
-        const listValues = arrCells.map((value) => 
-        <ListItem  key={value.value} value={value.id} name='filter-cell'  title={value.cellvalue} checkbox></ListItem>)
-        setListValue(listValues)
-        const selectAll = <ListItem name='filter-cellAll' checkbox>Select All</ListItem>
-        setselectAll(selectAll)
-        let $filterCell = $$('[name="filter-cell"]'),
-            $filterCellAll = $$('[name="filter-cellAll"]')
-            if(selectedCells === arrCells.length) {
-                $filterCellAll.prop('checked', true);
-                $filterCell.prop('checked', true);
-            } else {
-                arrCells.forEach((item,index) => {
-                    $filterCell.eq(index).prop('checked',idxs[index])
-                })
-            }
-        $$('.item-checkbox input[type="checkbox"]').on('click', updateCell.bind(null,config))
+        // let $filterCell = $$('[name="filter-cell"]'),
+        //     $filterCellAll = $$('[name="filter-cellAll"]')
+        //     if(selectedCells === arrCells.length) {
+        //         $filterCellAll.prop('checked', true);
+        //         $filterCell.prop('checked', true);
+        //     } else {
+        //         arrCells.forEach((item,index) => {
+        //             $filterCell.eq(index).prop('checked',idxs[index])
+        //         })
+        //     }
+        // $$('.item-checkbox input[type="checkbox"]').on('click', updateCell.bind(null,config))
     }
-    const updateCell = (config, e) => {
-        const api = Common.EditorApi.get(); 
-        let $filterCell = $$('[name="filter-cell"]'),
-            $filterCellAll = $$('[name="filter-cellAll"]'),
-            filterCellChecked = $$('[name="filter-cell"]:checked').length,
-            filterCellCheckedAll = $$('[name="filter-cell"]').length
-        if(e.target.name == "filter-cell") {
-            if (filterCellChecked < filterCellCheckedAll) {
-                $filterCellAll.prop('checked', false)
-            } else if (filterCellChecked === filterCellCheckedAll) {
-                $filterCellAll.prop('checked', true);
-            }
-            indChecked[e.target.value] = e.target.checked;
-        }
-        if(e.target.name == "filter-cellAll") {
-            let checkAll = false;
-            if(e.target.checked) {
-                $filterCell.prop('checked', true)
-                checkAll = true
-            } else {
-                $filterCell.prop('checked', false)
-                checkAll = false;
-                isValid = false;
-                filterCellChecked = 0
-            }
-            indChecked.forEach((item,index) => {
-                indChecked[index] = checkAll
-            })
-        }
-        setChecked(indChecked)
-        filterCellChecked === 0 ? isValid = false : isValid = true
-        if(isValid) {
-            let arrCells = config.asc_getValues()
-            arrCells.forEach((item, index) => {
-                item.asc_setVisible(indChecked[index])
-            })
-            config.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
-            api.asc_applyAutoFilter(config);
-        }
-        setClearDisable(config)
-    }
+    // const updateCell = (config, e) => {
+    //     const api = Common.EditorApi.get(); 
+    //     let $filterCell = $$('[name="filter-cell"]'),
+    //         $filterCellAll = $$('[name="filter-cellAll"]'),
+    //         filterCellChecked = $$('[name="filter-cell"]:checked').length,
+    //         filterCellCheckedAll = $$('[name="filter-cell"]').length
+    //     if(e.target.name == "filter-cell") {
+    //         if (filterCellChecked < filterCellCheckedAll) {
+    //             $filterCellAll.prop('checked', false)
+    //         } else if (filterCellChecked === filterCellCheckedAll) {
+    //             $filterCellAll.prop('checked', true);
+    //         }
+    //         indChecked[e.target.value] = e.target.checked;
+    //     }
+    //     if(e.target.name == "filter-cellAll") {
+    //         let checkAll = false;
+    //         if(e.target.checked) {
+    //             $filterCell.prop('checked', true)
+    //             checkAll = true
+    //         } else {
+    //             $filterCell.prop('checked', false)
+    //             checkAll = false;
+    //             isValid = false;
+    //             filterCellChecked = 0
+    //         }
+    //         indChecked.forEach((item,index) => {
+    //             indChecked[index] = checkAll
+    //         })
+    //     }
+    //     setChecked(indChecked)
+    //     filterCellChecked === 0 ? isValid = false : isValid = true
+    //     if(isValid) {
+    //         let arrCells = config.asc_getValues()
+    //         arrCells.forEach((item, index) => {
+    //             item.asc_setVisible(indChecked[index])
+    //         })
+    //         config.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
+    //         api.asc_applyAutoFilter(config);
+    //     }
+    //     setClearDisable(config)
+    // }
     return (
         !Device.phone ?
         <Popover id="picker-popover" className="popover__titled">
             <FilterOptions style={{height: '410px'}} onSort={onSort} listVal={listVal} 
-            selectAll={selectAll} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter} />
+             onDeleteFilter={onDeleteFilter} configFilter={configFilter} onClearFilter={onClearFilter} />
         </Popover> :
         <Sheet className="picker__sheet" push >
             <FilterOptions  onSort={onSort} listVal={listVal} 
-            selectAll={selectAll} dialog={dialog} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter}/>
+             dialog={dialog} configFilter={configFilter} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter}/>
         </Sheet>
     )
 }
