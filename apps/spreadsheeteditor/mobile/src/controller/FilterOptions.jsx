@@ -3,11 +3,12 @@ import FilterOptions from '../../src/view/FilterOptions';
 import { f7,Sheet,Popover, ListItem } from 'framework7-react';
 import { Device } from '../../../../common/mobile/utils/device';
 import { useTranslation } from 'react-i18next';
+
 const FilterOptionsController = () => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
-    const [configFilter, setConfig] = useState(null)
-    const [listVal, setListValue] = useState([])
+    const [configFilter, setConfig] = useState(null);
+    const [listVal, setListValue] = useState([]);
     const [arrayChecked, setChecked] = useState([])
     const dialog = f7.dialog.create({
         title: _t.textErrorTitle,
@@ -21,35 +22,39 @@ const FilterOptionsController = () => {
     let indChecked = [],
         isValid = true,
         configF,
-        list
+        list;
+
     useEffect(() => {
         function onDocumentReady()  {
             const api = Common.EditorApi.get();
-            api.asc_registerCallback('asc_onSetAFDialog',onApiFilterOptions);
+            api.asc_registerCallback('asc_onSetAFDialog', onApiFilterOptions);
         }
         
         if ( !Common.EditorApi ) {
-            Common.Notifications.on('document:ready',onDocumentReady);
+            Common.Notifications.on('document:ready', onDocumentReady);
         } else {
             onDocumentReady();
         }
 
-        return () => { 
+        return () => {
             Common.Notifications.off('document:ready', onDocumentReady);
             const api = Common.EditorApi.get();
-            api.asc_unregisterCallback('asc_onSetAFDialog',onApiFilterOptions);
+            api.asc_unregisterCallback('asc_onSetAFDialog', onApiFilterOptions);
         }
 
-    }, [])
+    }, []);
 
     const onApiFilterOptions= (config) => {
-        configF = config
+        // configF = config;
         let rect = config.asc_getCellCoord(),
         posX = rect.asc_getX() + rect.asc_getWidth() - 9,
         posY = rect.asc_getY() + rect.asc_getHeight() - 9;
-        listik =setDataFilterCells(config)
-        // setConfig(config)
-        setClearDisable(config)
+
+        setConfig(config);
+
+        setDataFilterCells(config);
+        setClearDisable(config);
+
         if (Device.phone) { 
             f7.sheet.open('.picker__sheet');
         } else {
@@ -98,6 +103,7 @@ const FilterOptionsController = () => {
         function isNumeric(value) {
             return !isNaN(parseFloat(value)) && isFinite(value);
         }
+
         let value = null,
             isnumber = null,
             index =0,
@@ -106,28 +112,30 @@ const FilterOptionsController = () => {
             arrCells = [],
             idxs = []
             config.asc_getValues().forEach(function (item) {
-            value = item.asc_getText()
-            isnumber = isNumeric(value)
-            if(idxs[throughIndex] == undefined) idxs[throughIndex] = item.asc_getVisible();
+                value = item.asc_getText()
+                isnumber = isNumeric(value)
+                if(idxs[throughIndex] == undefined) idxs[throughIndex] = item.asc_getVisible();
 
-            arrCells.push({
-                id              : index++,
-                selected        : false,
-                allowSelected   : true,
-                cellvalue       : value ? value : _t.textEmptyItem,
-                value           : isnumber ? value : (value.length > 0 ? value: _t.textEmptyItem),
-                intval          : isnumber ? parseFloat(value) : undefined,
-                strval          : !isnumber ? value : '',
-                groupid         : '1',
-                check           : idxs[throughIndex],
-                throughIndex    : throughIndex
-            })
-            if (idxs[throughIndex]) selectedCells++;
-            ++throughIndex;
-        });
-        // setListValue(arrCells)
+                arrCells.push({
+                    id              : index++,
+                    selected        : false,
+                    allowSelected   : true,
+                    cellvalue       : value ? value : _t.textEmptyItem,
+                    value           : isnumber ? value : (value.length > 0 ? value: _t.textEmptyItem),
+                    intval          : isnumber ? parseFloat(value) : undefined,
+                    strval          : !isnumber ? value : '',
+                    groupid         : '1',
+                    check           : idxs[throughIndex],
+                    throughIndex    : throughIndex
+                });
+
+                if (idxs[throughIndex]) selectedCells++;
+                ++throughIndex;
+            });
+
+        setListValue(arrCells);
         indChecked = idxs;
-        return arrCells
+        return arrCells;
         // setChecked(indChecked)
         // let $filterCell = $$('[name="filter-cell"]'),
         //     $filterCellAll = $$('[name="filter-cellAll"]')
@@ -184,10 +192,19 @@ const FilterOptionsController = () => {
     //     setClearDisable(config)
     // }
 
-    const onUpdateCell = (arrayCheck) =>{
-        // const api = Common.EditorApi.get();
-        console.log(configF,list)
-        const indChecked = arrayCheck.map(item => item.check)
+    const onUpdateCell = (id, state) =>{
+        // console.log(configFilter.asc_getValues()[id].asc_setVisible, state);
+
+        listVal[id].check = state;
+        setListValue([...listVal]);
+
+        configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
+        configFilter.asc_getValues()[id].asc_setVisible(state);
+
+        const api = Common.EditorApi.get();
+        api.asc_applyAutoFilter(configFilter);
+
+        // const indChecked = arrayCheck.map(item => item.check)
         // if(true) {
         //     let arrCells = configFilter.asc_getValues()
             
@@ -198,13 +215,13 @@ const FilterOptionsController = () => {
         //     api.asc_applyAutoFilter(configFilter);
         // }
         
-    }
+    };
 
     return (
         !Device.phone ?
         <Popover id="picker-popover" className="popover__titled">
             <FilterOptions style={{height: '410px'}} onSort={onSort} listVal={listVal} 
-             onDeleteFilter={onDeleteFilter} onUpdateCell={onUpdateCell} onClearFilter={onClearFilter} />
+                onDeleteFilter={onDeleteFilter} onUpdateCell={onUpdateCell} onClearFilter={onClearFilter} />
         </Popover> :
         <Sheet className="picker__sheet" push >
             <FilterOptions   onSort={onSort} listVal={listVal} 
