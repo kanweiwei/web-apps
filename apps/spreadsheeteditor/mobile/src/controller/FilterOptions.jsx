@@ -19,7 +19,9 @@ const FilterOptionsController = () => {
         ]
     })
     let indChecked = [],
-        isValid = true
+        isValid = true,
+        configF,
+        list
     useEffect(() => {
         function onDocumentReady()  {
             const api = Common.EditorApi.get();
@@ -39,12 +41,14 @@ const FilterOptionsController = () => {
         }
 
     }, [])
+
     const onApiFilterOptions= (config) => {
+        configF = config
         let rect = config.asc_getCellCoord(),
         posX = rect.asc_getX() + rect.asc_getWidth() - 9,
         posY = rect.asc_getY() + rect.asc_getHeight() - 9;
-        setDataFilterCells(config)
-        setConfig(config)
+        listik =setDataFilterCells(config)
+        // setConfig(config)
         setClearDisable(config)
         if (Device.phone) { 
             f7.sheet.open('.picker__sheet');
@@ -55,17 +59,19 @@ const FilterOptionsController = () => {
         }
         $$('#picker-popover').on('popover:closed', () => $$('[name="filter-cell"]:checked').length > 0 ? null : dialog.open())
     }
+
     const onSort = (type) => {
         const api = Common.EditorApi.get();
         api.asc_sortColFilter(type == 'sortdown' ? Asc.c_oAscSortOptions.Ascending : Asc.c_oAscSortOptions.Descending, configFilter.asc_getCellId(), configFilter.asc_getDisplayName(), undefined, true);
     }
+    
     const onClearFilter = () => {
         const api = Common.EditorApi.get();
         if(api) api.asc_clearFilter();
         for(let i=0; i < arrayChecked.length; i++) {
             arrayChecked[i] = true;
         }
-        setChecked(arrayChecked)
+        // setChecked(arrayChecked)
         $$('[name="filter-cell"]').prop('checked', true);
         $$('[name="filter-cellAll"]').prop('checked', true);
     }
@@ -80,6 +86,7 @@ const FilterOptionsController = () => {
             f7.popover.close('#picker-popover')
         }
     }
+
     const setClearDisable = (config) => {
         let $clearFilter = $$("#button-clear-filter");
         let arr = config.asc_getValues();
@@ -118,9 +125,10 @@ const FilterOptionsController = () => {
             if (idxs[throughIndex]) selectedCells++;
             ++throughIndex;
         });
-        setListValue(arrCells)
+        // setListValue(arrCells)
         indChecked = idxs;
-        setChecked(indChecked)
+        return arrCells
+        // setChecked(indChecked)
         // let $filterCell = $$('[name="filter-cell"]'),
         //     $filterCellAll = $$('[name="filter-cellAll"]')
         //     if(selectedCells === arrCells.length) {
@@ -133,6 +141,7 @@ const FilterOptionsController = () => {
         //     }
         // $$('.item-checkbox input[type="checkbox"]').on('click', updateCell.bind(null,config))
     }
+    
     // const updateCell = (config, e) => {
     //     const api = Common.EditorApi.get(); 
     //     let $filterCell = $$('[name="filter-cell"]'),
@@ -174,15 +183,32 @@ const FilterOptionsController = () => {
     //     }
     //     setClearDisable(config)
     // }
+
+    const onUpdateCell = (arrayCheck) =>{
+        // const api = Common.EditorApi.get();
+        console.log(configF,list)
+        const indChecked = arrayCheck.map(item => item.check)
+        // if(true) {
+        //     let arrCells = configFilter.asc_getValues()
+            
+        //     arrCells.forEach((item, index) => {
+        //         item.asc_setVisible(indChecked[index])
+        //     })
+        //     configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
+        //     api.asc_applyAutoFilter(configFilter);
+        // }
+        
+    }
+
     return (
         !Device.phone ?
         <Popover id="picker-popover" className="popover__titled">
             <FilterOptions style={{height: '410px'}} onSort={onSort} listVal={listVal} 
-             onDeleteFilter={onDeleteFilter} configFilter={configFilter} onClearFilter={onClearFilter} />
+             onDeleteFilter={onDeleteFilter} onUpdateCell={onUpdateCell} onClearFilter={onClearFilter} />
         </Popover> :
         <Sheet className="picker__sheet" push >
-            <FilterOptions  onSort={onSort} listVal={listVal} 
-             dialog={dialog} configFilter={configFilter} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter}/>
+            <FilterOptions   onSort={onSort} listVal={listVal} 
+             dialog={dialog} onUpdateCell={onUpdateCell} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter}/>
         </Sheet>
     )
 }
