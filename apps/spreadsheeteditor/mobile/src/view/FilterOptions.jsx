@@ -2,46 +2,53 @@ import React, {Fragment, useEffect, useRef, useState} from 'react';
 import {f7, List, Sheet, ListItem, Icon, Row, Button, ListButton, Page, Navbar, Segmented, BlockTitle, NavRight, Link, Toggle,View} from 'framework7-react';
 import { useTranslation } from 'react-i18next';
 import { Device } from '../../../../common/mobile/utils/device';
-const FilterOptions = ({style,listVal,onSort, onUpdateCell, dialog,onClearFilter,onDeleteFilter}) => {
+const FilterOptions = ({style,listVal,onSort, onUpdateCell,dialog,onClearFilter,onDeleteFilter}) => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
-
-    useEffect(() => {
-        setCheck(listVal)
-    },[listVal])
+    // useEffect(() => {
+    //     setCheck(listVal)
+    // },[listVal])
     const [arrayCheck,setCheck] = useState(listVal)
-
     const [all, setAll] = useState(false);
 
     const Closes = () => {
         $$('[name="filter-cell"]:checked').length > 0 ? null : dialog.open()
     }
 
-    const handleChange= (e) => {
-        setCheck(arrayCheck.map((item) => item.cellvalue === e.target.value
-        ?{...item, check: e.target.checked} :item))
-        let selectedCells = $$('[name="filter-cell"]:checked').length
-        if(selectedCells == listVal.length) {
-            setAll(true)
-        } 
-        if(e.target.name == "filter-cell") {
-            if(selectedCells < listVal.length) {
-                setAll(false)
-           }
-       }
-    }
-
-    onUpdateCell(arrayCheck)
+    // const handleChange= (e) => {
+    //     // setCheck(arrayCheck.map((item) => item.cellvalue === e.target.value
+    //     // ?{...item, check: e.target.checked} :item))
+    //     let selectedCells = $$('[name="filter-cell"]:checked').length
+    //     if(selectedCells == listVal.length) {
+    //         setAll(true)
+    //         onUpdateCell([])
+    //         // listVal.map(value => value.check=true)
+    //     } 
+    //     if(e.target.name == "filter-cell") {
+    //         if(selectedCells < listVal.length) {
+    //             setAll(false)
+    //        }
+    //    }
+    // //    onUpdateCell(listVal.value.id, e.target.checked)
+    // }
+    
+    // onUpdateCell(arrayCheck)
+    let selectedCells = $$('[name="filter-cell"]:checked').length
 
     const onUpdatesCell = (e) => {
-        setAll(e.target.checked)
-        setCheck(arrayCheck.map((item) => ({...item, check: e.target.checked})))
+        // setAll(e.target.checked)
+        // if(listVal.length > selectedCells) {
+        //     setAll(false)
+        // } else if(listVal.length === selectedCells) {
+        //     setAll(true)
+        // }
+        onUpdateCell([],all)
     }
-
-    const listValues = arrayCheck.map((value) => 
-    <ListItem onChange={(e) => handleChange(e)}  key={value.value} name='filter-cell' value={value.value} title={value.cellvalue} checkbox checked={value.check}></ListItem>)
-    const selectAll = <ListItem onChange={onUpdatesCell} name='filter-cellAll' checkbox checked={all}>Select All</ListItem>
     
+
+    const listValues = listVal.map((value) => 
+    <ListItem onChange={e => onUpdateCell(value.id, e.target.checked)}  key={value.value} name='filter-cell' value={value.value} title={value.cellvalue} checkbox checked={value.check}></ListItem>)
+    const selectAll = <ListItem onChange={e =>onUpdatesCell(e)} name='filter-cellAll' checkbox checked={all}>Select All</ListItem>
     return (
         <View style={style}>
             <Page>
