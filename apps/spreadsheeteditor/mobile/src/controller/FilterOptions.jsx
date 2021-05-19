@@ -184,20 +184,22 @@ const FilterOptionsController = () => {
     const onUpdateCell = (id=[],state) =>{
         const api = Common.EditorApi.get();
         let selectedCells = $$('[name="filter-cell"]:checked').length
+        selectedCells === 0 ? isValid = false : isValid = true
+        
         if(Array.isArray(id))  {
-            listVal.forEach(item => {item.check = !state});
+            listVal.forEach(item => {item.check = state});
             setListValue([...listVal]);
-            configFilter.asc_getValues().forEach((item)=> {
-                item.asc_setVisible(!state);
-            });
-        } else {
-        listVal[id].check = state;
-        setListValue([...listVal]);
-        configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
-        configFilter.asc_getValues()[id].asc_setVisible(state); 
+         } else {
+            listVal[id].check = state;
+            setListValue([...listVal]);
+        if(isValid){
+            configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
+            configFilter.asc_getValues()[id].asc_setVisible(state); 
+            }
+            api.asc_applyAutoFilter(configFilter);
         }
-        api.asc_applyAutoFilter(configFilter);
     }
+    
 
     return (
         !Device.phone ?

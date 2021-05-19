@@ -6,8 +6,8 @@ const FilterOptions = ({style,listVal,onSort, onUpdateCell,dialog,onClearFilter,
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
     // useEffect(() => {
-    //     setCheck(listVal)
-    // },[listVal])
+    //     onUpdatesCell
+    // },[])
     const [arrayCheck,setCheck] = useState(listVal)
     const [all, setAll] = useState(false);
 
@@ -33,22 +33,23 @@ const FilterOptions = ({style,listVal,onSort, onUpdateCell,dialog,onClearFilter,
     // }
     
     // onUpdateCell(arrayCheck)
-    let selectedCells = $$('[name="filter-cell"]:checked').length
-
-    const onUpdatesCell = (e) => {
-        // setAll(e.target.checked)
-        // if(listVal.length > selectedCells) {
-        //     setAll(false)
-        // } else if(listVal.length === selectedCells) {
-        //     setAll(true)
-        // }
-        onUpdateCell([],all)
-    }
     
 
+    let selectedCells = $$('[name="filter-cell"]:checked').length
+    
+    if(listVal.length === selectedCells) {
+        $$('[name="filter-cellAll"]').prop('checked', true);
+    } else if(listVal.length > selectedCells){
+        $$('[name="filter-cellAll"]').prop('checked', false);
+    }
+    const onUpdatesCell = (e) => {
+        
+        onUpdateCell([],e.target.checked)
+    }
+    
     const listValues = listVal.map((value) => 
     <ListItem onChange={e => onUpdateCell(value.id, e.target.checked)}  key={value.value} name='filter-cell' value={value.value} title={value.cellvalue} checkbox checked={value.check}></ListItem>)
-    const selectAll = <ListItem onChange={e =>onUpdatesCell(e)} name='filter-cellAll' checkbox checked={all}>Select All</ListItem>
+    const selectAll = <ListItem onChange={onUpdatesCell} name='filter-cellAll' checkbox>Select All</ListItem>
     return (
         <View style={style}>
             <Page>
