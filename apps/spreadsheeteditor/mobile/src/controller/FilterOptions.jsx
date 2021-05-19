@@ -3,11 +3,12 @@ import FilterOptions from '../../src/view/FilterOptions';
 import { f7,Sheet,Popover, ListItem } from 'framework7-react';
 import { Device } from '../../../../common/mobile/utils/device';
 import { useTranslation } from 'react-i18next';
+
 const FilterOptionsController = () => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
-    const [configFilter, setConfig] = useState(null)
-    const [listVal, setListValue] = useState([])
+    const [configFilter, setConfig] = useState(null);
+    const [listVal, setListValue] = useState([]);
     const [arrayChecked, setChecked] = useState([])
     const dialog = f7.dialog.create({
         title: _t.textErrorTitle,
@@ -39,7 +40,7 @@ const FilterOptionsController = () => {
             api.asc_unregisterCallback('asc_onSetAFDialog',onApiFilterOptions);
         }
 
-    }, [])
+    }, []);
 
     const onApiFilterOptions= (config) => {
         let rect = config.asc_getCellCoord(),
@@ -96,6 +97,7 @@ const FilterOptionsController = () => {
         function isNumeric(value) {
             return !isNaN(parseFloat(value)) && isFinite(value);
         }
+
         let value = null,
             isnumber = null,
             index =0,
@@ -119,7 +121,8 @@ const FilterOptionsController = () => {
                 groupid         : '1',
                 check           : idxs[throughIndex],
                 throughIndex    : throughIndex
-            })
+                });
+
             if (idxs[throughIndex]) selectedCells++;
             ++throughIndex;
         });
@@ -195,7 +198,7 @@ const FilterOptionsController = () => {
         if(isValid){
             configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
             configFilter.asc_getValues()[id].asc_setVisible(state); 
-            }
+    };
             api.asc_applyAutoFilter(configFilter);
         }
     }
