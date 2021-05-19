@@ -3,57 +3,50 @@ import {f7, List, Sheet, ListItem, Icon, Row, Button, ListButton, Page, Navbar, 
 import { useTranslation } from 'react-i18next';
 import { Device } from '../../../../common/mobile/utils/device';
 
-// const FilterOptions = ({style,listVal,onSort, onUpdateCell, dialog,onClearFilter,onDeleteFilter}) => {
-const FilterOptions = props => {
+const FilterOptions = ({style,listVal,onSort, onUpdateCell, dialog,onClearFilter,onDeleteFilter}) => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
-    // useEffect(() => {
-    //     onUpdatesCell
-    // },[])
-    const [arrayCheck,setCheck] = useState(listVal)
+
+    let selectedCells = $$('[name="filter-cell"]:checked').length;
+    let newArr = [];
+
+    useEffect(() => {
+        if(listVal.length === selectedCells) {
+            setAll(true);
+        } else if(listVal.length > selectedCells) {
+            setAll(false);
+        }
+    })
+
     const [all, setAll] = useState(false);
 
     const Closes = () => {
-        // $$('[name="filter-cell"]:checked').length > 0 ? null : dialog.open()
+        $$('[name="filter-cell"]:checked').length > 0 ? null : dialog.open();
     };
-
-    // const handleChange= (e) => {
-    //     // setCheck(arrayCheck.map((item) => item.cellvalue === e.target.value
-    //     // ?{...item, check: e.target.checked} :item))
-    //     let selectedCells = $$('[name="filter-cell"]:checked').length
-    //     if(selectedCells == listVal.length) {
-    //         setAll(true)
-    //         onUpdateCell([])
-    //         // listVal.map(value => value.check=true)
-    //     } 
-    //     if(e.target.name == "filter-cell") {
-    //         if(selectedCells < listVal.length) {
-    //             setAll(false)
-    //        }
-    //    }
-    // //    onUpdateCell(listVal.value.id, e.target.checked)
-    // }
     
-    // onUpdateCell(arrayCheck)
-    
-
-    let selectedCells = $$('[name="filter-cell"]:checked').length
-    
-    if(listVal.length === selectedCells) {
-        $$('[name="filter-cellAll"]').prop('checked', true);
-    } else if(listVal.length > selectedCells){
-        $$('[name="filter-cellAll"]').prop('checked', false);
-    }
     const onUpdatesCell = (e) => {
-        
-        onUpdateCell([],e.target.checked)
+        if(e.target.checked) {
+            setAll(true);
+            newArr = listVal.map(item => item.check = true);
+            onUpdateCell(newArr,e.target.checked);
+        } else {
+            setAll(false);
+            onUpdateCell([],false);
+        }
+    }
+
+    const HandleDeleteFilter = () => {
+        onClearFilter();
+        setAll(true);
+        newArr = listVal.map(item => item.check = true);
+        onUpdateCell(newArr, true);
     }
     
     const listValues = listVal.map((value) => 
     <ListItem onChange={e => onUpdateCell(value.id, e.target.checked)}  key={value.value} name='filter-cell' value={value.value} title={value.cellvalue} checkbox checked={value.check}></ListItem>)
-    const selectAll = <ListItem onChange={onUpdatesCell} name='filter-cellAll' checkbox>Select All</ListItem>
+    const selectAll = <ListItem onChange={onUpdatesCell} name='filter-cellAll' checkbox checked={all}>Select All</ListItem>
     return (
-        <View style={props.style}>
+        <View style={style}>
             <Page>
             <Navbar title={_t.textFilterOptions}>
             {Device.phone &&
@@ -67,24 +60,22 @@ const FilterOptions = props => {
            <List>
                 <ListItem className='buttons'>
                     <Row>
-                        <a className='button' onClick={() => this.props.onSort('sortdown')}>
+                        <a className='button' onClick={() => onSort('sortdown')}>
                             <Icon slot="media" icon="sortdown"></Icon>
                         </a>
-                        <a className='button' onClick={() => this.props.onSort('sortup')}>
+                        <a className='button' onClick={() => onSort('sortup')}>
                             <Icon slot="media" icon="sortup"></Icon>
                         </a>
                     </Row>
                 </ListItem>
            </List>
            <List >
-               <ListButton color="black" className="item-link button-raised"  disabled id='button-clear-filter' onClick={() => this.props.onClearFilter()}>{_t.textClearFilter}</ListButton>
-               <ListButton color="red" onClick={() => this.props.onDeleteFilter()} id="btn-delete-filter">{_t.textDeleteFilter}</ListButton>
+               <ListButton color="black" className="item-link button-raised"  disabled id='button-clear-filter' onClick={HandleDeleteFilter}>{_t.textClearFilter}</ListButton>
+               <ListButton color="red" onClick={() => onDeleteFilter()} id="btn-delete-filter">{_t.textDeleteFilter}</ListButton>
            </List>
            <List>
-               <ListItem onChange={e => this.props.onUpdateCell([])} name='filter-cellAll' checkbox checked={all}>Select All</ListItem>
-                {props.listVal.map( value =>
-                    <ListItem onChange={e => props.onUpdateCell(value.id, e.target.checked)}  key={value.value} name='filter-cell' value={value.value} title={value.cellvalue} checkbox checked={value.check}></ListItem>
-                )}
+               {selectAll}
+               {listValues}
            </List>
             </Page>
         </View>

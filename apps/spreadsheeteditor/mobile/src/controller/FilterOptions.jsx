@@ -9,7 +9,6 @@ const FilterOptionsController = () => {
     const _t = t('View.Edit', {returnObjects: true});
     const [configFilter, setConfig] = useState(null);
     const [listVal, setListValue] = useState([]);
-    const [arrayChecked, setChecked] = useState([])
     const dialog = f7.dialog.create({
         title: _t.textErrorTitle,
         text: _t.textErrorMsg,
@@ -67,12 +66,6 @@ const FilterOptionsController = () => {
     const onClearFilter = () => {
         const api = Common.EditorApi.get();
         if(api) api.asc_clearFilter();
-        for(let i=0; i < arrayChecked.length; i++) {
-            arrayChecked[i] = true;
-        }
-        // setChecked(arrayChecked)
-        $$('[name="filter-cell"]').prop('checked', true);
-        $$('[name="filter-cellAll"]').prop('checked', true);
     }
 
     const onDeleteFilter = () => {
@@ -128,7 +121,6 @@ const FilterOptionsController = () => {
         });
         setListValue(arrCells)
         indChecked = idxs;
-        setChecked(idxs)
         // let $filterCell = $$('[name="filter-cell"]'),
         //     $filterCellAll = $$('[name="filter-cellAll"]')
         //     if(selectedCells === arrCells.length) {
@@ -186,21 +178,28 @@ const FilterOptionsController = () => {
     
     const onUpdateCell = (id=[],state) =>{
         const api = Common.EditorApi.get();
-        let selectedCells = $$('[name="filter-cell"]:checked').length
-        selectedCells === 0 ? isValid = false : isValid = true
         
-        if(Array.isArray(id))  {
-            listVal.forEach(item => {item.check = state});
+        if(id.length > 0){
+            let arrCells = configFilter.asc_getValues();
             setListValue([...listVal]);
-         } else {
+            arrCells.forEach((item, index) => {
+                item.asc_setVisible(id[index])
+            })
+            configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
+            api.asc_applyAutoFilter(configFilter);
+        } else if(id.length === 0) {
+            listVal.forEach(item => item.check = state)
+            setListValue([...listVal]);
+        } else{
             listVal[id].check = state;
             setListValue([...listVal]);
-        if(isValid){
-            configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
-            configFilter.asc_getValues()[id].asc_setVisible(state); 
-    };
+            if(isValid){
+                configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
+                configFilter.asc_getValues()[id].asc_setVisible(state); 
+            };
             api.asc_applyAutoFilter(configFilter);
         }
+        setClearDisable(configFilter)
     }
     
 
