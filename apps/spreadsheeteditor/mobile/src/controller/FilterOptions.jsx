@@ -1,4 +1,4 @@
-import React, {useEffect,useState} from 'react';
+import React, {useCallback, useEffect,useState} from 'react';
 import FilterOptions from '../../src/view/FilterOptions';
 import { f7,Sheet,Popover, ListItem } from 'framework7-react';
 import { Device } from '../../../../common/mobile/utils/device';
@@ -18,8 +18,17 @@ const FilterOptionsController = () => {
             }
         ]
     })
+
+    const close = useCallback(() => {
+        $$('[name="filter-cell"]:checked').length > 0 ? null : dialog.open();
+    })
+    
+    const Closes = () => {
+        close;
+    }
+
     let indChecked = [],
-        isValid = true
+        isValid = true;
 
     useEffect(() => {
         function onDocumentReady()  {
@@ -56,6 +65,7 @@ const FilterOptionsController = () => {
             f7.popover.open('#picker-popover',$target)
         }
         $$('#picker-popover').on('popover:closed', () => $$('[name="filter-cell"]:checked').length > 0 ? null : dialog.open())
+        $$('.picker__sheet').on('sheet:closed', () => $$('[name="filter-cell"]:checked').length > 0 ? null : dialog.open())
     }
 
     const onSort = (type) => {
@@ -178,25 +188,25 @@ const FilterOptionsController = () => {
     
     const onUpdateCell = (id=[],state) =>{
         const api = Common.EditorApi.get();
-        let selectedCells = $$('[name="filter-cell"]:checked').length
-        selectedCells === 0 ? isValid = false : isValid = true
+        let selectedCells = $$('[name="filter-cell"]:checked').length;
+        selectedCells === 0 ? isValid = false : isValid = true;
         
         if(id.length > 0){
             let arrCells = configFilter.asc_getValues();
             setListValue([...listVal]);
             arrCells.forEach((item, index) => {
-                item.asc_setVisible(id[index])
+                item.asc_setVisible(id[index]);
             })
             configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
             api.asc_applyAutoFilter(configFilter);
         } else if(id.length === 0) {
-            listVal.forEach(item => item.check = state)
+            listVal.forEach(item => item.check = state);
             setListValue([...listVal]);
         } else{
             if((listVal.filter(item => item.check === true).length === 0)) {
                 listVal[id].check = state;
                 setListValue([...listVal]);
-                configFilter.asc_getValues().forEach((item,index) => item.asc_setVisible(listVal[index].check))
+                configFilter.asc_getValues().forEach((item,index) => item.asc_setVisible(listVal[index].check));
                 api.asc_applyAutoFilter(configFilter);
             } else {
                 listVal[id].check = state;
@@ -208,7 +218,7 @@ const FilterOptionsController = () => {
             api.asc_applyAutoFilter(configFilter);
             }
         }
-        setClearDisable(configFilter)
+        setClearDisable(configFilter);
     }
     
 
@@ -219,8 +229,8 @@ const FilterOptionsController = () => {
              onDeleteFilter={onDeleteFilter} onUpdateCell={onUpdateCell} onClearFilter={onClearFilter} />
         </Popover> :
         <Sheet className="picker__sheet" push >
-            <FilterOptions   onSort={onSort} listVal={listVal}
-             dialog={dialog} onUpdateCell={onUpdateCell} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter}/>
+            <FilterOptions   onSort={onSort} listVal={listVal} Closes={Closes}
+             onUpdateCell={onUpdateCell} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter}/>
         </Sheet>
     )
 }

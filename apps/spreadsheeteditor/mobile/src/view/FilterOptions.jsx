@@ -3,7 +3,7 @@ import {f7, List, Sheet, ListItem, Icon, Row, Button, ListButton, Page, Navbar, 
 import { useTranslation } from 'react-i18next';
 import { Device } from '../../../../common/mobile/utils/device';
 
-const FilterOptions = ({style,listVal,onSort, onUpdateCell, dialog,onClearFilter,onDeleteFilter}) => {
+const FilterOptions = ({style,listVal,onSort, onUpdateCell,Closes,onClearFilter,onDeleteFilter}) => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
 
@@ -19,10 +19,6 @@ const FilterOptions = ({style,listVal,onSort, onUpdateCell, dialog,onClearFilter
     })
 
     const [all, setAll] = useState(false);
-
-    const Closes = () => {
-        $$('[name="filter-cell"]:checked').length > 0 ? null : dialog.open();
-    };
     
     const onUpdatesCell = (e) => {
         if(e.target.checked) {
