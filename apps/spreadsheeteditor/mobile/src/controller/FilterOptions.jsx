@@ -193,13 +193,20 @@ const FilterOptionsController = () => {
             listVal.forEach(item => item.check = state)
             setListValue([...listVal]);
         } else{
-            listVal[id].check = state;
-            setListValue([...listVal]);
-            if(isValid){
-                configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
-                configFilter.asc_getValues()[id].asc_setVisible(state); 
-            };
+            if((listVal.filter(item => item.check === true).length === 0)) {
+                listVal[id].check = state;
+                setListValue([...listVal]);
+                configFilter.asc_getValues().forEach((item,index) => item.asc_setVisible(listVal[index].check))
+                api.asc_applyAutoFilter(configFilter);
+            } else {
+                listVal[id].check = state;
+                setListValue([...listVal]);
+                if(isValid){
+                    configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
+                    configFilter.asc_getValues()[id].asc_setVisible(state); 
+                };
             api.asc_applyAutoFilter(configFilter);
+            }
         }
         setClearDisable(configFilter)
     }
