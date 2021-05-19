@@ -8,7 +8,7 @@ const FilterOptions = ({style,listVal,onSort, onUpdateCell, dialog,onClearFilter
     const _t = t('View.Edit', {returnObjects: true});
 
     let selectedCells = $$('[name="filter-cell"]:checked').length;
-    let newArr = [];
+    let newArr=[];
 
     useEffect(() => {
         if(listVal.length === selectedCells) {

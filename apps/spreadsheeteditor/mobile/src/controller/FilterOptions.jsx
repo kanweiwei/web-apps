@@ -178,6 +178,8 @@ const FilterOptionsController = () => {
     
     const onUpdateCell = (id=[],state) =>{
         const api = Common.EditorApi.get();
+        let selectedCells = $$('[name="filter-cell"]:checked').length
+        selectedCells === 0 ? isValid = false : isValid = true
         
         if(id.length > 0){
             let arrCells = configFilter.asc_getValues();
