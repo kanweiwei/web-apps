@@ -23,7 +23,7 @@ class MainPage extends Component {
             addOptionsVisible: false,
             addShowOptions: null,
             settingsVisible: false,
-            collaborationVisible: false,
+            collaborationVisible: false
         };
     }
 
@@ -58,11 +58,6 @@ class MainPage extends Component {
             })
         })();
     };
-
-    // onClickToCloseFilter = () => {
-    //     f7.popover.open('#picker-popover')
-    //     console.log('Close!')
-    // }
 
   render() {
       const appOptions = this.props.storeAppOptions;
