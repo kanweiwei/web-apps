@@ -7,12 +7,12 @@ import { useTranslation } from 'react-i18next';
 const FilterOptionsController = () => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
+
     const [configFilter, setConfig] = useState(null);
     const [listVal, setListValue] = useState([]);
     
-    let isValid = true,
-    selectedCells = (listVal.filter(item => item.check === true)).length;
-
+    let selectedCells = listVal.filter(item => item.check === true).length;
+    
     const onClosed = () => {
         if(selectedCells === 0) { 
             f7.dialog.create({
@@ -123,14 +123,12 @@ const FilterOptionsController = () => {
     
     const onUpdateCell = (id=[],state) =>{
         const api = Common.EditorApi.get();
-        
-        let selectedCells = $$('[name="filter-cell"]:checked').length;
-        selectedCells === 0 ? isValid = false : isValid = true;
 
         if(id.length > 0){
-            configFilter.asc_getValues().forEach((item, index) => {
-                item.asc_setVisible(id[index]);
+            configFilter.asc_getValues().forEach(item => {
+                item.asc_setVisible(state);
             })
+            setListValue([...listVal]);
             configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
             api.asc_applyAutoFilter(configFilter);
         } else if(id.length === 0) {
@@ -145,7 +143,7 @@ const FilterOptionsController = () => {
             } else {
                 listVal[id].check = state;
                 setListValue([...listVal]);
-                if(isValid){
+                if((listVal.filter(item => item.check === true)).length){
                     configFilter.asc_getFilterObj().asc_setType(Asc.c_oAscAutoFilterTypes.Filters);
                     configFilter.asc_getValues()[id].asc_setVisible(state); 
                 };
@@ -157,7 +155,7 @@ const FilterOptionsController = () => {
     
     return (
         !Device.phone ?
-        <Popover id="picker-popover" className="popover__titled">
+        <Popover id="picker-popover" className="popover__titled" onPopoverClosed={onClosed}>
             <FilterOptions style={{height: '410px'}} onSort={onSort} listVal={listVal} 
              onDeleteFilter={onDeleteFilter} onUpdateCell={onUpdateCell} onClearFilter={onClearFilter} />
         </Popover> :

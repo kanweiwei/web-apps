@@ -3,7 +3,7 @@ import {f7, List, Sheet, ListItem, Icon, Row, Button, ListButton, Page, Navbar, 
 import { useTranslation } from 'react-i18next';
 import { Device } from '../../../../common/mobile/utils/device';
 
-const FilterOptions = ({style,listVal,onSort, onUpdateCell,Closes,onClearFilter,onDeleteFilter}) => {
+const FilterOptions = ({style,listVal,onSort, onUpdateCell,onClearFilter,onDeleteFilter}) => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
 
@@ -47,7 +47,7 @@ const FilterOptions = ({style,listVal,onSort, onUpdateCell,Closes,onClearFilter,
             <Navbar title={_t.textFilterOptions}>
             {Device.phone &&
                 <NavRight>
-                    <Link sheetClose=".picker__sheet" onClick={Closes}>
+                    <Link sheetClose=".picker__sheet">
                         <Icon icon='icon-expand-down'/>
                     </Link>
                 </NavRight>
