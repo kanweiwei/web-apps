@@ -3,26 +3,26 @@ import {f7, List, Sheet, ListItem, Icon, Row, Button, ListButton, Page, Navbar, 
 import { useTranslation } from 'react-i18next';
 import { Device } from '../../../../common/mobile/utils/device';
 
-const FilterOptions = ({style,listVal,onSort, onUpdateCell,onClearFilter,onDeleteFilter}) => {
+const FilterOptions = (props) => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
 
     useEffect(() => {
-        const is_all_checked = listVal.every(item => item.check);
+        const is_all_checked = props.listVal.every(item => item.check);
         setAll(is_all_checked);
     });
 
     const [all, setAll] = useState(false);
-    
+
     const HandleClearFilter = () => {
-        onClearFilter();
+        props.onClearFilter();
         setAll(true);
-        let newArr = listVal.map(item => item.check = true);
-        onUpdateCell(newArr, true);
+        let newArr = props.listVal.map(item => item.check = true);
+        props.onUpdateCell(newArr, true);
     };
     
     return (
-        <View style={style}>
+        <View style={props.style}>
             <Page>
             <Navbar title={_t.textFilterOptions}>
             {Device.phone &&
@@ -36,10 +36,10 @@ const FilterOptions = ({style,listVal,onSort, onUpdateCell,onClearFilter,onDelet
            <List>
                 <ListItem className='buttons'>
                     <Row>
-                        <a className='button' onClick={() => onSort('sortdown')}>
+                        <a className='button' onClick={() => props.onSort('sortdown')}>
                             <Icon slot="media" icon="sortdown" />
                         </a>
-                        <a className='button' onClick={() => onSort('sortup')}>
+                        <a className='button' onClick={() => props.onSort('sortup')}>
                             <Icon slot="media" icon="sortup" />
                         </a>
                     </Row>
@@ -47,12 +47,12 @@ const FilterOptions = ({style,listVal,onSort, onUpdateCell,onClearFilter,onDelet
            </List>
            <List >
                <ListButton color="black" className="item-link button-raised"  disabled id='button-clear-filter' onClick={HandleClearFilter}>{_t.textClearFilter}</ListButton>
-               <ListButton color="red" onClick={() => onDeleteFilter()} id="btn-delete-filter">{_t.textDeleteFilter}</ListButton>
+               <ListButton color="red" onClick={() => props.onDeleteFilter()} id="btn-delete-filter">{_t.textDeleteFilter}</ListButton>
            </List>
            <List>
-               <ListItem onChange={e => onUpdateCell('all', e.target.checked)} name='filter-cellAll' checkbox checked={all}>Select All</ListItem>
-               {listVal.map((value) =>
-                   <ListItem onChange={e => onUpdateCell(value.id, e.target.checked)}  key={value.value} name='filter-cell' value={value.value} title={value.cellvalue} checkbox checked={value.check} />
+               <ListItem onChange={e => props.onUpdateCell('all', e.target.checked)} name='filter-cellAll' checkbox checked={all}>Select All</ListItem>
+               {props.listVal.map((value) =>
+                   <ListItem onChange={e => props.onUpdateCell(value.id, e.target.checked)}  key={value.value} name='filter-cell' value={value.value} title={value.cellvalue} checkbox checked={value.check} />
                )}
            </List>
             </Page>
