@@ -1,5 +1,5 @@
 import React, { useEffect,useState } from 'react';
-import FilterOptions from '../../src/view/FilterOptions';
+import FilterView from '../../src/view/FilterOptions';
 import { f7,Sheet,Popover } from 'framework7-react';
 import { Device } from '../../../../common/mobile/utils/device';
 import { useTranslation } from 'react-i18next';
@@ -10,20 +10,7 @@ const FilterOptionsController = () => {
 
     const [configFilter, setConfig] = useState(null);
     const [listVal, setListValue] = useState([]);
-    
-    const onClosed = () => {
-        if ( listVal.every(item => !item.check) ) {
-            f7.dialog.create({
-                title: _t.textErrorTitle,
-                text: _t.textErrorMsg,
-                buttons: [
-                    {
-                        text: 'OK',
-                    }
-                ]
-            }).open();
-        }
-    };
+    const [isValid, setIsValid] = useState(null)
     
     useEffect(() => {
         function onDocumentReady()  {
@@ -84,10 +71,9 @@ const FilterOptionsController = () => {
     };
 
     const setClearDisable = (config) => {
-        let $clearFilter = $$("#button-clear-filter");
         let arr = config.asc_getValues();
-        let lenCheck = arr.filter((item) => {return item.visible == true}).length;
-        lenCheck == arr.length ?  $clearFilter.addClass('disabled') : $clearFilter.removeClass('disabled'); 
+        let lenCheck = arr.filter((item) => item.visible == true).length;
+        lenCheck == arr.length ? setIsValid(true) : setIsValid(false)
     };
 
     const setDataFilterCells = (config) => {
@@ -140,15 +126,8 @@ const FilterOptionsController = () => {
     };
 
     return (
-        !Device.phone ?
-            <Popover id="picker-popover" className="popover__titled" onPopoverClosed={onClosed}>
-                <FilterOptions style={{height: '410px'}} onSort={onSort} listVal={listVal}
-                    onDeleteFilter={onDeleteFilter} onUpdateCell={onUpdateCell} onClearFilter={onClearFilter} />
-            </Popover> :
-            <Sheet className="picker__sheet" push onSheetClosed={onClosed}>
-                <FilterOptions   onSort={onSort} listVal={listVal}
-                    onUpdateCell={onUpdateCell} onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter}/>
-            </Sheet>
+        <FilterView onSort={onSort} listVal={listVal} isValid={isValid} onUpdateCell={onUpdateCell} 
+        onDeleteFilter={onDeleteFilter} onClearFilter={onClearFilter}/>
     )
 };
 

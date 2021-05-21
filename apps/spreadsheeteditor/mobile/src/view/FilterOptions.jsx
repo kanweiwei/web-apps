@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {f7, List, Sheet, ListItem, Icon, Row, Button, ListButton, Page, Navbar, Segmented, BlockTitle, NavRight, Link, Toggle,View} from 'framework7-react';
+import {f7, List, Popover, Sheet, ListItem, Icon, Row, Button, ListButton, Page, Navbar, Segmented, BlockTitle, NavRight, Link, Toggle,View} from 'framework7-react';
 import { useTranslation } from 'react-i18next';
 import { Device } from '../../../../common/mobile/utils/device';
 
@@ -8,6 +8,8 @@ const FilterOptions = (props) => {
     const _t = t('View.Edit', {returnObjects: true});
 
     useEffect(() => {
+        const $clearFilter = $$("#button-clear-filter");
+        props.isValid ? $clearFilter.addClass('disabled') : $clearFilter.removeClass('disabled');
         const is_all_checked = props.listVal.every(item => item.check);
         setAll(is_all_checked);
     });
@@ -17,8 +19,7 @@ const FilterOptions = (props) => {
     const HandleClearFilter = () => {
         props.onClearFilter();
         setAll(true);
-        let newArr = props.listVal.map(item => item.check = true);
-        props.onUpdateCell(newArr, true);
+        props.onUpdateCell('all', true);
     };
     
     return (
@@ -46,7 +47,7 @@ const FilterOptions = (props) => {
                 </ListItem>
            </List>
            <List >
-               <ListButton color="black" className="item-link button-raised"  disabled id='button-clear-filter' onClick={HandleClearFilter}>{_t.textClearFilter}</ListButton>
+               <ListButton color="black" className="item-link button-raised"  id='button-clear-filter' onClick={HandleClearFilter}>{_t.textClearFilter}</ListButton>
                <ListButton color="red" onClick={() => props.onDeleteFilter()} id="btn-delete-filter">{_t.textDeleteFilter}</ListButton>
            </List>
            <List>
@@ -60,6 +61,33 @@ const FilterOptions = (props) => {
     )
 };
 
+const FilterView = (props) => {
+    const { t } = useTranslation();
+    const _t = t('View.Edit', {returnObjects: true});
 
+    const onClosed = () => {
+        if ( props.listVal.every(item => !item.check) ) {
+            f7.dialog.create({
+                title: _t.textErrorTitle,
+                text: _t.textErrorMsg,
+                buttons: [
+                    {
+                        text: 'OK',
+                    }
+                ]
+            }).open();
+        }
+    };
 
-export default FilterOptions
+    return (
+        !Device.phone ?
+        <Popover id="picker-popover" className="popover__titled" onPopoverClosed={onClosed}>
+            <FilterOptions style={{height: '410px'}} {...props}></FilterOptions>
+        </Popover> :
+        <Sheet className="picker__sheet" push onSheetClosed={onClosed}>
+            <FilterOptions  {...props}></FilterOptions>
+        </Sheet>
+    )
+}
+
+export default FilterView;
