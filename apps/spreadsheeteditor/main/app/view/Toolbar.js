@@ -900,10 +900,10 @@ define([
                 });
 
                 me.listStyles = new Common.UI.ComboDataView({
-                    cls             : 'combo-styles',
+                    cls             : 'combo-cell-styles',
                     enableKeyEvents : true,
-                    itemWidth       : 112,
-                    itemHeight      : 40,
+                    itemWidth       : 100,
+                    itemHeight      : 20,
                     menuMaxHeight   : 226,
                     lock            : [_set.editCell, _set.selChart, _set.selChartText, _set.selShape, _set.selShapeText, _set.selImage, _set.selSlicer, _set.lostConnect, _set.coAuth, _set['FormatCells']],
                     dataHint        : '1',

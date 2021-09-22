@@ -78,11 +78,8 @@
     }
 }
 
-
-.combo-styles {
+.combo-styles(@combo-dataview-height: 46px, @item-height: 46px) {
     @combo-dataview-button-width: 30px;
-    @combo-dataview-height: 46px;
-
     height: @combo-dataview-height;
 
     .view {
@@ -92,7 +89,7 @@
         .border-left-radius(0);
 
         .dataview {
-            height: 46px;
+            height: @combo-dataview-height;
             padding: 0;
             margin: -1px 0 0 -1px;
         }
@@ -108,7 +105,7 @@
         @minus-px: calc(-1px / @pixel-ratio-factor);
         margin: 0 @minus-px-ie @minus-px-ie 0;
         margin: 0 @minus-px @minus-px 0;
-        height: @combo-dataview-height;
+        height: @item-height;
         background-color: @background-normal-ie;
         background-color: @background-normal;
 
@@ -202,6 +199,18 @@
     .ps-scrollbar-y-rail {
         margin-top: 2px;
     }
+}
+
+.combo-styles {
+    .combo-styles()
+}
+
+.combo-cell-styles {
+    .combo-styles(52px, 26px);
+
+    top: -3px;
+    padding-right: 16px;
+    position: absolute;
 }
 
 .combo-template(@combo-dataview-height: 64px) {
