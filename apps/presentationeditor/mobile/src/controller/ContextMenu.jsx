@@ -25,6 +25,7 @@ class ContextMenu extends ContextMenuController {
         this.onApiShowComment = this.onApiShowComment.bind(this);
         this.onApiHideComment = this.onApiHideComment.bind(this);
         this.getUserName = this.getUserName.bind(this);
+        this.isUserVisible = this.isUserVisible.bind(this);
     }
 
     static closeContextMenu() {
@@ -36,12 +37,19 @@ class ContextMenu extends ContextMenuController {
         return AscCommon.UserInfoParser.getParsedName(user.asc_getUserName());
     }
 
+    isUserVisible(id) {
+        const user = this.props.users.searchUserByCurrentId(id);
+        return user ? (user.asc_getIdOriginal()===this.props.users.currentUser.asc_getIdOriginal() || AscCommon.UserInfoParser.isUserVisible(user.asc_getUserName())) : true;
+    }
+
     componentWillUnmount() {
         super.componentWillUnmount();
 
         const api = Common.EditorApi.get();
-        api.asc_unregisterCallback('asc_onShowComment', this.onApiShowComment);
-        api.asc_unregisterCallback('asc_onHideComment', this.onApiHideComment);
+        if ( api ) {
+            api.asc_unregisterCallback('asc_onShowComment', this.onApiShowComment);
+            api.asc_unregisterCallback('asc_onHideComment', this.onApiHideComment);
+        }
     }
 
 
@@ -145,28 +153,30 @@ class ContextMenu extends ContextMenuController {
                         Common.EditorApi.get().SplitCell(parseInt(size[0]), parseInt(size[1]));
                     }
                 }
-            ]
+            ],
+            on: {
+                open: () => {
+                    picker = f7.picker.create({
+                        containerEl: document.getElementById('picker-split-size'),
+                        cols: [
+                            {
+                                textAlign: 'center',
+                                width: '100%',
+                                values: [1,2,3,4,5,6,7,8,9,10]
+                            },
+                            {
+                                textAlign: 'center',
+                                width: '100%',
+                                values: [1,2,3,4,5,6,7,8,9,10]
+                            }
+                        ],
+                        toolbar: false,
+                        rotateEffect: true,
+                        value: [3, 3]
+                    });
+                }
+            }
         }).open();
-        dialog.on('opened', () => {
-            picker = f7.picker.create({
-                containerEl: document.getElementById('picker-split-size'),
-                cols: [
-                    {
-                        textAlign: 'center',
-                        width: '100%',
-                        values: [1,2,3,4,5,6,7,8,9,10]
-                    },
-                    {
-                        textAlign: 'center',
-                        width: '100%',
-                        values: [1,2,3,4,5,6,7,8,9,10]
-                    }
-                ],
-                toolbar: false,
-                rotateEffect: true,
-                value: [3, 3]
-            });
-        });
     }
 
     openLink(url) {
@@ -192,7 +202,7 @@ class ContextMenu extends ContextMenuController {
     initMenuItems() {
         if ( !Common.EditorApi ) return [];
 
-        const { isEdit } = this.props;
+        const { isEdit, isDisconnected } = this.props;
 
         if (isEdit && EditorUIController.ContextMenu) {
             return EditorUIController.ContextMenu.mapMenuItems(this);
@@ -249,18 +259,20 @@ class ContextMenu extends ContextMenuController {
                     icon: 'icon-copy'
                 });
             }
-            if (canViewComments && this.isComments && !isEdit) {
-                itemsText.push({
-                    caption: _t.menuViewComment,
-                    event: 'viewcomment'
-                });
-            }
-
-            if (!isChart && api.can_AddQuotedComment() !== false && canCoAuthoring && canComments && !locked) {
-                itemsText.push({
-                    caption: _t.menuAddComment,
-                    event: 'addcomment'
-                });
+            if(!isDisconnected) {
+                if (canViewComments && this.isComments && !isEdit) {
+                    itemsText.push({
+                        caption: _t.menuViewComment,
+                        event: 'viewcomment'
+                    });
+                }
+    
+                if (!isChart && api.can_AddQuotedComment() !== false && canCoAuthoring && canComments && !locked) {
+                    itemsText.push({
+                        caption: _t.menuAddComment,
+                        event: 'addcomment'
+                    });
+                }
             }
 
             if (isLink) {

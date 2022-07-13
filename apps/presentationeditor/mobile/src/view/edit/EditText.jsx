@@ -1,9 +1,11 @@
-import React, {Fragment, useState} from 'react';
+import React, {Fragment, useState, useEffect} from 'react';
 import {observer, inject} from "mobx-react";
-import {f7, List, ListItem, Icon, Row, Button, Page, Navbar, Segmented, BlockTitle, NavRight, Link} from 'framework7-react';
+import {f7, Swiper, View, SwiperSlide, List, ListItem, Icon, Row,  Button, Page, Navbar, Segmented, BlockTitle, NavRight, Link} from 'framework7-react';
 import { useTranslation } from 'react-i18next';
 import {Device} from '../../../../../common/mobile/utils/device';
 import { ThemeColorPalette, CustomColorPicker } from '../../../../../common/mobile/lib/component/ThemeColorPalette.jsx';
+import { LocalStorage } from '../../../../../common/mobile/utils/LocalStorage';
+import HighlightColorPalette from '../../../../../common/mobile/lib/component/HighlightColorPalette.jsx';
 
 const EditText = props => {
     const isAndroid = Device.android;
@@ -15,6 +17,7 @@ const EditText = props => {
     const fontName = storeTextSettings.fontName || _t.textFonts;
     const fontSize = storeTextSettings.fontSize;
     const fontColor = storeTextSettings.textColor;
+    const highlightColor = storeTextSettings.highlightColor;
     const displaySize = typeof fontSize === 'undefined' || fontSize == '' ? _t.textAuto : fontSize + ' ' + _t.textPt;
     const isBold = storeTextSettings.isBold;
     const isItalic = storeTextSettings.isItalic;
@@ -27,6 +30,18 @@ const EditText = props => {
     const paragraphObj = storeFocusObjects.paragraphObject;
     let spaceBefore;
     let spaceAfter;
+    let previewList;
+    switch(storeTextSettings.listType) {
+        case -1: 
+            previewList = '';
+            break;
+        case 0: 
+            previewList = t('View.Edit.textBullets');
+            break;
+        case 1: 
+            previewList = t('View.Edit.textNumbers');
+            break;
+    }
 
     if(paragraphObj) {
         spaceBefore = paragraphObj.get_Spacing().get_Before() < 0 ? paragraphObj.get_Spacing().get_Before() : Common.Utils.Metric.fnRecalcFromMM(paragraphObj.get_Spacing().get_Before());
@@ -39,6 +54,10 @@ const EditText = props => {
     const fontColorPreview = fontColor !== 'auto' ?
         <span className="color-preview" style={{ background: `#${(typeof fontColor === "object" ? fontColor.color : fontColor)}`}}></span> :
         <span className="color-preview auto"></span>;
+
+    const highlightColorPreview = highlightColor !== 'transparent' ?
+        <span className="color-preview" style={{ background: `#${(typeof highlightColor === "object" ? highlightColor.color : highlightColor)}`}}></span> :
+        <span className="color-preview"></span>;
 
     return (
         <Fragment>
@@ -63,6 +82,13 @@ const EditText = props => {
                         fontColorPreview
                     }
                 </ListItem>
+                <ListItem title={t("View.Edit.textHighlightColor")} link="/edit-text-highlight-color/" routeProps={{
+                    onHighlightColor: props.onHighlightColor
+                }}>
+                    {!isAndroid ?
+                        <Icon slot="media" icon="icon-text-selection">{highlightColorPreview}</Icon> : highlightColorPreview
+                    }
+                </ListItem>
                 <ListItem title={_t.textAdditionalFormatting} link="/edit-text-add-formatting/" routeProps={{
                     onAdditionalStrikethrough: props.onAdditionalStrikethrough,
                     onAdditionalCaps: props.onAdditionalCaps,
@@ -72,7 +98,7 @@ const EditText = props => {
                     {!isAndroid && <Icon slot="media" icon="icon-text-additional"></Icon>}
                 </ListItem>
             </List>
-            {paragraphObj ? (
+            {paragraphObj || storeFocusObjects.settings.includes('text') ? (
                 <Fragment>
                     <List>
                         <ListItem className='buttons'>
@@ -114,15 +140,12 @@ const EditText = props => {
                                 </a>
                             </Row>
                         </ListItem>
-                        <ListItem title={_t.textBullets} link='/edit-text-bullets/' routeProps={{
-                            onBullet: props.onBullet
+                        <ListItem title={_t.textBulletsAndNumbers} link='/edit-bullets-and-numbers/' routeProps={{
+                            onBullet: props.onBullet,
+                            onNumber: props.onNumber,
                         }}>
+                            <div className="preview">{previewList}</div>
                             {!isAndroid && <Icon slot="media" icon="icon-bullets"></Icon>}
-                        </ListItem>
-                        <ListItem title={_t.textNumbers} link='/edit-text-numbers/' routeProps={{
-                            onNumber: props.onNumber
-                        }}>
-                            {!isAndroid && <Icon slot="media" icon="icon-numbers"></Icon>}
                         </ListItem>
                         <ListItem title={_t.textLineSpacing} link='/edit-text-line-spacing/' routeProps={{
                             onLineSpacing: props.onLineSpacing
@@ -176,7 +199,31 @@ const PageFonts = props => {
     const displaySize = typeof size === 'undefined' || size == '' ? _t.textAuto : size + ' ' + _t.textPt;
     const curFontName = storeTextSettings.fontName;
     const fonts = storeTextSettings.fontsArray;
+    const iconWidth = storeTextSettings.iconWidth;
+    const iconHeight = storeTextSettings.iconHeight;
+    const thumbs = storeTextSettings.thumbs;
+    const thumbIdx = storeTextSettings.thumbIdx;
+    const thumbCanvas = storeTextSettings.thumbCanvas;
+    const thumbContext = storeTextSettings.thumbContext;
+    const spriteCols = storeTextSettings.spriteCols;
+    const spriteThumbs = storeTextSettings.spriteThumbs;
+    const arrayRecentFonts = storeTextSettings.arrayRecentFonts;
 
+    const addRecentStorage = () => {
+        setRecent(getImageUri(arrayRecentFonts));
+        LocalStorage.setItem('ppe-settings-recent-fonts', JSON.stringify(arrayRecentFonts));
+    };
+
+    const getImageUri = fonts => {
+        return fonts.map(font => {
+            thumbContext.clearRect(0, 0, thumbs[thumbIdx].width, thumbs[thumbIdx].height);
+            thumbContext.drawImage(spriteThumbs, 0, -thumbs[thumbIdx].height * Math.floor(font.imgidx / spriteCols));
+
+            return thumbCanvas.toDataURL();
+        });
+    };
+
+    const [stateRecent, setRecent] = useState(() => getImageUri(arrayRecentFonts));
     const [vlFonts, setVlFonts] = useState({
         vlData: {
             items: [],
@@ -187,14 +234,19 @@ const PageFonts = props => {
         setVlFonts((prevState) => {
             let fonts = [...prevState.vlData.items];
             fonts.splice(vlData.fromIndex, vlData.toIndex, ...vlData.items);
+
+            let images = getImageUri(fonts);
+
             return {vlData: {
                 items: fonts,
+                images,
             }};
         });
     };
 
     const paragraph = props.storeFocusObjects.paragraphObject;
-    if (!paragraph && Device.phone) {
+    const shapeObj = props.storeFocusObjects.shapeObject;
+    if (!shapeObj && !paragraph && Device.phone) {
         $$('.sheet-modal.modal-in').length > 0 && f7.sheet.close();
         return null;
     }
@@ -227,20 +279,30 @@ const PageFonts = props => {
                 </ListItem>
             </List>
             <BlockTitle>{_t.textFonts}</BlockTitle>
+            {!!arrayRecentFonts.length &&
+                <List>
+                    {arrayRecentFonts.map((item, index) => (
+                        <ListItem className="font-item" key={index} radio checked={curFontName === item.name} onClick={() => {
+                            props.changeFontFamily(item.name);
+                        }}> 
+                            <img src={stateRecent[index]} style={{width: `${iconWidth}px`, height: `${iconHeight}px`}} />
+                        </ListItem>
+                    ))}
+                </List>
+            }
             <List virtualList virtualListParams={{
                 items: fonts,
                 renderExternal: renderExternal
             }}>
                 <ul>
                     {vlFonts.vlData.items.map((item, index) => (
-                        <ListItem
-                            key={index}
-                            radio
-                            checked={curFontName === item.name}
-                            title={item.name}
-                            style={{fontFamily: `${item.name}`}}
-                            onClick={() => {props.changeFontFamily(item.name)}}
-                        ></ListItem>
+                        <ListItem className="font-item" key={index} radio checked={curFontName === item.name} onClick={() => {
+                            props.changeFontFamily(item.name);
+                            storeTextSettings.addFontToRecent(item);
+                            addRecentStorage();
+                        }}>
+                            <img src={vlFonts.vlData.images[index]} style={{width: `${iconWidth}px`, height: `${iconHeight}px`}} />
+                        </ListItem>
                     ))}
                 </ul>
             </List>
@@ -268,7 +330,8 @@ const PageFontColor = props => {
     };
 
     const paragraph = props.storeFocusObjects.paragraphObject;
-    if (!paragraph && Device.phone) {
+    const shapeObj = props.storeFocusObjects.shapeObject;
+    if (!shapeObj && !paragraph && Device.phone) {
         $$('.sheet-modal.modal-in').length > 0 && f7.sheet.close();
         return null;
     }
@@ -327,6 +390,37 @@ const PageCustomFontColor = props => {
     )
 };
 
+const PageHighlightColor = props => {
+    const { t } = useTranslation();
+    const _t = t('View.Edit', {returnObjects: true});
+    const highlightColor = props.storeTextSettings.highlightColor;
+
+    const changeColor = (color, effectId) => {
+        if (color !== 'empty') {
+            if (effectId !== undefined ) {
+                props.onHighlightColor({color: color, effectId: effectId});
+            } else {
+                props.onHighlightColor(color);
+            }
+        }
+    };
+
+    return (
+        <Page>
+            <Navbar title={_t.textHighlightColor} backLink={_t.textBack}>
+                {Device.phone &&
+                    <NavRight>
+                        <Link sheetClose='#edit-sheet'>
+                            <Icon icon='icon-expand-down'/>
+                        </Link>
+                    </NavRight>
+                }
+            </Navbar>
+            <HighlightColorPalette changeColor={changeColor} curColor={highlightColor} />
+        </Page>
+    )
+};
+
 const PageAdditionalFormatting = props => {
     const isAndroid = Device.android;
     const { t } = useTranslation();
@@ -334,6 +428,7 @@ const PageAdditionalFormatting = props => {
     const storeTextSettings = props.storeTextSettings;
     const storeFocusObjects = props.storeFocusObjects;
     const paragraphObj = storeFocusObjects.paragraphObject;
+    const shapeObj = storeFocusObjects.shapeObject;
     const isSuperscript = storeTextSettings.isSuperscript;
     const isSubscript = storeTextSettings.isSubscript;
     
@@ -351,7 +446,7 @@ const PageAdditionalFormatting = props => {
         letterSpacing = (paragraphObj.get_TextSpacing() === null || paragraphObj.get_TextSpacing() === undefined) ? paragraphObj.get_TextSpacing() : Common.Utils.Metric.fnRecalcFromMM(paragraphObj.get_TextSpacing());
     }
 
-    if (!paragraphObj && Device.phone) {
+    if (!shapeObj && !paragraphObj && Device.phone) {
         $$('.sheet-modal.modal-in').length > 0 && f7.sheet.close();
         return null;
     }
@@ -395,7 +490,7 @@ const PageAdditionalFormatting = props => {
     )
 };
 
-const PageBullets = props => {
+const PageBullets = observer(props => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
     const bulletArrays = [
@@ -416,41 +511,38 @@ const PageBullets = props => {
     const typeBullets = storeTextSettings.typeBullets;
 
     const paragraph = props.storeFocusObjects.paragraphObject;
-    if (!paragraph && Device.phone) {
+    const shapeObj = props.storeFocusObjects.shapeObject;
+    if (!shapeObj && !paragraph && Device.phone) {
         $$('.sheet-modal.modal-in').length > 0 && f7.sheet.close();
         return null;
     }
 
-    return (
-        <Page className='bullets dataview'>
-            <Navbar title={_t.textBullets} backLink={_t.textBack}>
-                {Device.phone &&
-                    <NavRight>
-                        <Link sheetClose='#edit-sheet'>
-                            <Icon icon='icon-expand-down'/>
-                        </Link>
-                    </NavRight>
-                }
-            </Navbar>
+    return(
+        <View className='bullets dataview'>
             {bulletArrays.map((bullets, index) => (
-                    <ul className="row" style={{listStyle: 'none'}} key={'bullets-' + index}>
+                    <List className="row" style={{listStyle: 'none'}} key={'bullets-' + index}>
                         {bullets.map((bullet) => (
-                            <li key={'bullet-' + bullet.type} data-type={bullet.type} className={bullet.type === typeBullets ? 'active' : ''} onClick={() => {props.onBullet(bullet.type)}}>
+                            <ListItem key={'bullet-' + bullet.type} data-type={bullet.type} className={(bullet.type === typeBullets) && 
+                                (storeTextSettings.listType === 0 || storeTextSettings.listType === -1) ? 'active' : ''}
+                                onClick={() => {
+                                    storeTextSettings.resetBullets(bullet.type);
+                                    props.onBullet(bullet.type);
+                                }}>
                                 {bullet.thumb.length < 1 ?
-                                    <div className="thumb" style={{position: 'relative'}}>
+                                    <Icon className="thumb" style={{position: 'relative'}}>
                                         <label>{_t.textNone}</label>
-                                    </div> :
-                                    <div className="thumb" style={{backgroundImage: `url('resources/img/bullets/${bullet.thumb}')`}}></div>
+                                    </Icon> :
+                                    <Icon className="thumb" style={{backgroundImage: `url('resources/img/bullets/${bullet.thumb}')`}}></Icon>
                                 }
-                            </li>
+                            </ListItem>
                         ))}
-                    </ul>
+                    </List>
             ))}
-        </Page>
+        </View>
     )
-};
+});
 
-const PageNumbers = props => {
+const PageNumbers = observer(props => {
     const { t } = useTranslation();
     const _t = t('View.Edit', {returnObjects: true});
     const numberArrays = [
@@ -472,14 +564,46 @@ const PageNumbers = props => {
     const typeNumbers = storeTextSettings.typeNumbers;
 
     const paragraph = props.storeFocusObjects.paragraphObject;
-    if (!paragraph && Device.phone) {
+    const shapeObj = props.storeFocusObjects.shapeObject;
+    if (!shapeObj && !paragraph && Device.phone) {
         $$('.sheet-modal.modal-in').length > 0 && f7.sheet.close();
         return null;
     }
 
     return (
-        <Page className='numbers dataview'>
-            <Navbar title={_t.textNumbers} backLink={_t.textBack}>
+        <View className='numbers dataview'>
+            {numberArrays.map((numbers, index) => (
+                <List className="row" style={{listStyle: 'none'}} key={'numbers-' + index}>
+                    {numbers.map((number) => (
+                        <ListItem key={'number-' + number.type} data-type={number.type} className={(number.type === typeNumbers) && 
+                            (storeTextSettings.listType === 1 || storeTextSettings.listType === -1) ? 'active' : ''}
+                            onClick={() => {
+                                storeTextSettings.resetNumbers(number.type);
+                                props.onNumber(number.type);
+                            }}>
+                            {number.thumb.length < 1 ?
+                                <Icon className="thumb" style={{position: 'relative'}}>
+                                    <label>{_t.textNone}</label>
+                                </Icon> :
+                                <Icon className="thumb" style={{backgroundImage: `url('resources/img/numbers/${number.thumb}')`}}></Icon>
+                            }
+                        </ListItem>
+                    ))}
+                </List>
+            ))}
+        </View>
+    )
+});
+
+const PageBulletsAndNumbers = props => {
+    const { t } = useTranslation();
+    const _t = t('View.Edit', {returnObjects: true});
+    const storeTextSettings = props.storeTextSettings;
+    const storeFocusObjects = props.storeFocusObjects;
+    
+    return (
+        <Page>
+            <Navbar title={_t.textBulletsAndNumbers} backLink={_t.textBack}>
                 {Device.phone &&
                     <NavRight>
                         <Link sheetClose='#edit-sheet'>
@@ -488,23 +612,13 @@ const PageNumbers = props => {
                     </NavRight>
                 }
             </Navbar>
-            {numberArrays.map((numbers, index) => (
-                <ul className="row" style={{listStyle: 'none'}} key={'numbers-' + index}>
-                    {numbers.map((number) => (
-                        <li key={'number-' + number.type} data-type={number.type} className={number.type === typeNumbers ? 'active' : ''} onClick={() => {props.onNumber(number.type)}}>
-                            {number.thumb.length < 1 ?
-                                <div className="thumb" style={{position: 'relative'}}>
-                                    <label>{_t.textNone}</label>
-                                </div> :
-                                <div className="thumb" style={{backgroundImage: `url('resources/img/numbers/${number.thumb}')`}}></div>
-                            }
-                        </li>
-                    ))}
-                </ul>
-            ))}
+            <Swiper pagination>
+                <SwiperSlide> <PageNumbers f7router={props.f7router} storeFocusObjects={storeFocusObjects} storeTextSettings={storeTextSettings} onNumber={props.onNumber}/></SwiperSlide> 
+                <SwiperSlide> <PageBullets f7router={props.f7router} storeFocusObjects={storeFocusObjects} storeTextSettings={storeTextSettings} onBullet={props.onBullet}/></SwiperSlide>
+            </Swiper>
         </Page>
     )
-};
+}
 
 const PageLineSpacing = props => {
     const { t } = useTranslation();
@@ -513,7 +627,8 @@ const PageLineSpacing = props => {
     const lineSpacing = storeTextSettings.lineSpacing;
 
     const paragraph = props.storeFocusObjects.paragraphObject;
-    if (!paragraph && Device.phone) {
+    const shapeObj = props.storeFocusObjects.shapeObject;
+    if (!shapeObj && !paragraph && Device.phone) {
         $$('.sheet-modal.modal-in').length > 0 && f7.sheet.close();
         return null;
     }
@@ -544,19 +659,19 @@ const PageLineSpacing = props => {
 const EditTextContainer = inject("storeTextSettings", "storeFocusObjects")(observer(EditText));
 const PageTextFonts = inject("storeTextSettings", "storeFocusObjects")(observer(PageFonts));
 const PageTextFontColor = inject("storeTextSettings", "storePalette", "storeFocusObjects")(observer(PageFontColor));
+const PageTextHighlightColor = inject("storeTextSettings")(observer(PageHighlightColor));
 const PageTextCustomFontColor = inject("storeTextSettings", "storePalette")(observer(PageCustomFontColor));
 const PageTextAddFormatting = inject("storeTextSettings", "storeFocusObjects")(observer(PageAdditionalFormatting));
-const PageTextBullets = inject("storeTextSettings", "storeFocusObjects")(observer(PageBullets));
-const PageTextNumbers = inject("storeTextSettings", "storeFocusObjects")(observer(PageNumbers));
+const PageTextBulletsAndNumbers = inject("storeTextSettings", "storeFocusObjects")(observer(PageBulletsAndNumbers));
 const PageTextLineSpacing = inject("storeTextSettings", "storeFocusObjects")(observer(PageLineSpacing));
 
 export {
     EditTextContainer as EditText,
     PageTextFonts,
     PageTextFontColor,
+    PageTextHighlightColor,
     PageTextCustomFontColor,
     PageTextAddFormatting,
-    PageTextBullets,
-    PageTextNumbers,
+    PageTextBulletsAndNumbers,
     PageTextLineSpacing
 };

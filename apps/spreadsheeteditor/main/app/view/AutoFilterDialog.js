@@ -962,7 +962,7 @@ define([
 
             _.extend(_options, {
                 width           : width || 450,
-                height          : height || 265,
+                height          : height || 277,
                 contentWidth    : (width - 50) || 400,
                 header          : false,
                 cls             : 'filter-dlg',
@@ -973,7 +973,7 @@ define([
                 items           : [],
                 resizable       : true,
                 minwidth        : 450,
-                minheight       : 265
+                minheight       : 277
             }, options);
 
             this.template   =   options.template || [
@@ -1022,7 +1022,7 @@ define([
             $border.removeClass('top');
 
 
-            this.$window.find('.btn').on('click', _.bind(this.onBtnClick, this));
+            this.$window.find('.dlg-btn').on('click', _.bind(this.onBtnClick, this));
 
             this.btnOk = new Common.UI.Button({
                 cls: 'btn normal dlg-btn primary',
@@ -1622,7 +1622,7 @@ define([
                     }
                 }
 
-                if (isLabel || event.target.className.match('checkbox')) {
+                if (isLabel || event.target.className.match('checkbox') && event.target.localName!=='input') {
                     this.updateCellCheck(listView, record);
 
                     _.delay(function () {

@@ -63,6 +63,10 @@ define([
             {name: 'OTT',   imgCls: 'ott',   type: Asc.c_oAscFileType.OTT},
             {name: 'RTF',   imgCls: 'rtf',   type: Asc.c_oAscFileType.RTF}
         ],[
+            {name: 'DOCM',  imgCls: 'docm',  type: Asc.c_oAscFileType.DOCM},
+            {name: 'DOCXF',  imgCls: 'docxf',  type: Asc.c_oAscFileType.DOCXF},
+            {name: 'OFORM',  imgCls: 'oform',  type: Asc.c_oAscFileType.OFORM}
+        ],[
             {name: 'HTML (Zipped)',  imgCls: 'html',  type: Asc.c_oAscFileType.HTML},
             {name: 'FB2',   imgCls: 'fb2',  type: Asc.c_oAscFileType.FB2},
             {name: 'EPUB',  imgCls: 'epub',  type: Asc.c_oAscFileType.EPUB}
@@ -74,9 +78,11 @@ define([
                 '<% _.each(rows, function(row) { %>',
                     '<tr>',
                         '<% _.each(row, function(item) { %>',
-                            '<td><div><svg class="btn-doc-format" format="<%= item.type %>">',
+                            '<% if (item.type!==Asc.c_oAscFileType.DOCM || fileType=="docm") { %>',
+                            '<td><div><svg class="btn-doc-format" format="<%= item.type %>" data-hint="2" data-hint-direction="left-top" data-hint-offset="4, 4">',
                                 '<use xlink:href="#svg-format-<%= item.imgCls %>"></use>',
                             '</svg></div></td>',
+                            '<% } %>',
                         '<% }) %>',
                     '</tr>',
                 '<% }) %>',
@@ -87,10 +93,31 @@ define([
             Common.UI.BaseView.prototype.initialize.call(this,arguments);
 
             this.menu = options.menu;
+            this.fileType = options.fileType;
+            this.mode = options.mode;
         },
 
         render: function() {
-            this.$el.html(this.template({rows:this.formats}));
+            if (/^pdf$/.test(this.fileType)) {
+                this.formats[0].splice(1, 1); // remove pdf
+                this.formats[1].splice(1, 1); // remove pdfa
+                this.formats[3].push({name: 'PDF',  imgCls: 'pdf', type: ''}); // original pdf
+            } else if (/^xps|oxps$/.test(this.fileType)) {
+                this.formats[3].push({name: this.fileType.toUpperCase(),  imgCls: this.fileType, type: ''}); // original xps/oxps
+            } else if (/^djvu$/.test(this.fileType)) {
+                this.formats = [[
+                    {name: 'DJVU',  imgCls: 'djvu',  type: ''}, // original djvu
+                    {name: 'PDF',   imgCls: 'pdf',   type: Asc.c_oAscFileType.PDF}
+                ]];
+            }
+
+            if (this.mode && !this.mode.canFeatureForms && this.formats.length>2) {
+                this.formats[2].splice(1, 2);
+                this.formats[2] = this.formats[2].concat(this.formats[3]);
+                this.formats[3] = undefined;
+            }
+
+            this.$el.html(this.template({rows:this.formats, fileType: (this.fileType || 'docx').toLowerCase()}));
             $('.btn-doc-format',this.el).on('click', _.bind(this.onFormatClick,this));
 
             if (_.isUndefined(this.scroller)) {
@@ -112,7 +139,7 @@ define([
         onFormatClick: function(e) {
             var type = e.currentTarget.attributes['format'];
             if (!_.isUndefined(type) && this.menu) {
-                this.menu.fireEvent('saveas:format', [this.menu, parseInt(type.value)]);
+                this.menu.fireEvent('saveas:format', [this.menu, type.value ? parseInt(type.value) : undefined]);
             }
         }
     });
@@ -132,6 +159,10 @@ define([
             {name: 'OTT',   imgCls: 'ott',   type: Asc.c_oAscFileType.OTT, ext: '.ott'},
             {name: 'RTF',   imgCls: 'rtf',   type: Asc.c_oAscFileType.RTF, ext: '.rtf'}
         ],[
+            {name: 'DOCM',  imgCls: 'docm',  type: Asc.c_oAscFileType.DOCM, ext: '.docm'},
+            {name: 'DOCXF',  imgCls: 'docxf',  type: Asc.c_oAscFileType.DOCXF, ext: '.docxf'},
+            {name: 'OFORM',  imgCls: 'oform',  type: Asc.c_oAscFileType.OFORM, ext: '.oform'}
+        ],[
             {name: 'HTML (Zipped)',  imgCls: 'html',  type: Asc.c_oAscFileType.HTML, ext: '.html'},
             {name: 'FB2',   imgCls: 'fb2',  type: Asc.c_oAscFileType.FB2, ext: '.fb2'},
             {name: 'EPUB',  imgCls: 'epub',  type: Asc.c_oAscFileType.EPUB, ext: '.epub'}
@@ -143,9 +174,11 @@ define([
                 '<% _.each(rows, function(row) { %>',
                     '<tr>',
                         '<% _.each(row, function(item) { %>',
-                            '<td><div><svg class="btn-doc-format" format="<%= item.type %>", format-ext="<%= item.ext %>">',
+                            '<% if (item.type!==Asc.c_oAscFileType.DOCM || fileType=="docm") { %>',
+                            '<td><div><svg class="btn-doc-format" format="<%= item.type %>", format-ext="<%= item.ext %>" data-hint="2" data-hint-direction="left-top" data-hint-offset="4, 4">',
                             '<use xlink:href="#svg-format-<%= item.imgCls %>"></use>',
                             '</svg></div></td>',
+                            '<% } %>',
                         '<% }) %>',
                     '</tr>',
                 '<% }) %>',
@@ -156,10 +189,31 @@ define([
             Common.UI.BaseView.prototype.initialize.call(this,arguments);
 
             this.menu = options.menu;
+            this.fileType = options.fileType;
+            this.mode = options.mode;
         },
 
         render: function() {
-            this.$el.html(this.template({rows:this.formats}));
+            if (/^pdf$/.test(this.fileType)) {
+                this.formats[0].splice(1, 1); // remove pdf
+                this.formats[1].splice(1, 1); // remove pdfa
+                this.formats[3].push({name: 'PDF',  imgCls: 'pdf', type: '', ext: true}); // original pdf
+            } else if (/^xps|oxps$/.test(this.fileType)) {
+                this.formats[3].push({name: this.fileType.toUpperCase(),  imgCls: this.fileType, type: '', ext: true}); // original xps/oxps
+            } else if (/^djvu$/.test(this.fileType)) {
+                this.formats = [[
+                    {name: 'DJVU',  imgCls: 'djvu',  type: '', ext: true}, // original djvu
+                    {name: 'PDF',   imgCls: 'pdf',   type: Asc.c_oAscFileType.PDF, ext: '.pdf'}
+                ]];
+            }
+
+            if (this.mode && !this.mode.canFeatureForms && this.formats.length>2) {
+                this.formats[2].splice(1, 2);
+                this.formats[2] = this.formats[2].concat(this.formats[3]);
+                this.formats[3] = undefined;
+            }
+
+            this.$el.html(this.template({rows:this.formats, fileType: (this.fileType || 'docx').toLowerCase()}));
             $('.btn-doc-format',this.el).on('click', _.bind(this.onFormatClick,this));
 
             if (_.isUndefined(this.scroller)) {
@@ -182,7 +236,7 @@ define([
             var type = e.currentTarget.attributes['format'],
                 ext = e.currentTarget.attributes['format-ext'];
             if (!_.isUndefined(type) && !_.isUndefined(ext) && this.menu) {
-                this.menu.fireEvent('savecopy:format', [this.menu, parseInt(type.value), ext.value]);
+                this.menu.fireEvent('saveas:format', [this.menu, type.value ? parseInt(type.value) : undefined, ext.value]);
             }
         }
     });
@@ -204,13 +258,17 @@ define([
                     '<td class="right"><div id="fms-chb-resolved-comment"></div></td>',
                 '</tr>','<tr class="divider comments"></tr>',
                 /** coauthoring end **/
-                '<tr class="edit">',
+                '<tr class="view-review">',
+                    '<td class="left"><label><%= scope.strReviewHover %></label></td>',
+                    '<td class="right"><span id="fms-cmb-review-hover"></span></td>',
+                '</tr>','<tr class="divider view-review"></tr>',
+                '<tr class="edit spellcheck">',
                     '<td class="left"><label><%= scope.txtSpellCheck %></label></td>',
                     '<td class="right"><div id="fms-chb-spell-check"></div></td>',
-                '</tr>','<tr class="divider edit"></tr>',
+                '</tr>','<tr class="divider edit spellcheck"></tr>',
                 '<tr class="edit">',
                     '<td class="left"><label><%= scope.txtProofing %></label></td>',
-                    '<td class="right"><button type="button" class="btn btn-text-default" id="fms-btn-auto-correct" style="width:auto; display: inline-block;padding-right: 10px;padding-left: 10px;"><%= scope.txtAutoCorrect %></button></div></td>',
+                    '<td class="right"><button type="button" class="btn btn-text-default" id="fms-btn-auto-correct" style="width:auto; display: inline-block;padding-right: 10px;padding-left: 10px;" data-hint="2" data-hint-direction="bottom" data-hint-offset="medium"><%= scope.txtAutoCorrect %></button></div></td>',
                 '</tr>','<tr class="divider edit"></tr>',
                 '<tr class="edit">',
                     '<td class="left"><label><%= scope.txtInput %></label></td>',
@@ -246,7 +304,9 @@ define([
                 /** coauthoring end **/
                 '<tr class="themes">',
                     '<td class="left"><label><%= scope.strTheme %></label></td>',
-                    '<td class="right"><span id="fms-cmb-theme"></span></td>',
+                    '<td class="right">',
+                        '<div><div id="fms-cmb-theme" style="display: inline-block; margin-right: 15px;vertical-align: middle;"></div>',
+                        '<div id="fms-chb-dark-mode" style="display: inline-block; vertical-align: middle;margin-top: 2px;"></div></div></td>',
                 '</tr>','<tr class="divider"></tr>',
                 '<tr>',
                     '<td class="left"><label><%= scope.strZoom %></label></td>',
@@ -272,7 +332,7 @@ define([
                 '</tr>','<tr class="divider macros"></tr>',
                 '<tr class="fms-btn-apply">',
                     '<td class="left"></td>',
-                    '<td class="right" style="padding-top:15px; padding-bottom: 15px;"><button class="btn normal dlg-btn primary"><%= scope.okButtonText %></button></td>',
+                    '<td class="right" style="padding-top:15px; padding-bottom: 15px;"><button class="btn normal dlg-btn primary" data-hint="2" data-hint-direction="bottom" data-hint-offset="medium"><%= scope.okButtonText %></button></td>',
                 '</tr>',
             '</tbody></table>',
         '</div>',
@@ -280,7 +340,7 @@ define([
             '<table style="margin: 10px 0;"><tbody>',
                 '<tr>',
                 '<td class="left"></td>',
-                '<td class="right"><button class="btn normal dlg-btn primary"><%= scope.okButtonText %></button></td>',
+                '<td class="right"><button class="btn normal dlg-btn primary" data-hint="2" data-hint-direction="bottom" data-hint-offset="big"><%= scope.okButtonText %></button></td>',
                 '</tr>',
             '</tbody></table>',
         '</div>'
@@ -298,36 +358,54 @@ define([
 
             this.chInputMode = new Common.UI.CheckBox({
                 el: $markup.findById('#fms-chb-input-mode'),
-                labelText: this.strInputMode
+                labelText: this.strInputMode,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
 
             /** coauthoring begin **/
             this.chLiveComment = new Common.UI.CheckBox({
                 el: $markup.findById('#fms-chb-live-comment'),
-                labelText: this.strLiveComment
+                labelText: this.strLiveComment,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             }).on('change', function(field, newValue, oldValue, eOpts){
                 me.chResolvedComment.setDisabled(field.getValue()!=='checked');
             });
 
             this.chResolvedComment = new Common.UI.CheckBox({
                 el: $markup.findById('#fms-chb-resolved-comment'),
-                labelText: this.strResolvedComment
+                labelText: this.strResolvedComment,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             /** coauthoring end **/
 
             this.chSpell = new Common.UI.CheckBox({
                 el: $markup.findById('#fms-chb-spell-check'),
-                labelText: this.strSpellCheckMode
+                labelText: this.strSpellCheckMode,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
 
             this.chCompatible = new Common.UI.CheckBox({
                 el: $markup.findById('#fms-chb-compatible'),
-                labelText: this.textOldVersions
+                labelText: this.textOldVersions,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
 
             this.chAutosave = new Common.UI.CheckBox({
                 el: $markup.findById('#fms-chb-autosave'),
-                labelText: this.strAutosave
+                labelText: this.strAutosave,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             }).on('change', function(field, newValue, oldValue, eOpts){
                 if (field.getValue()!=='checked' && me.cmbCoAuthMode.getValue()) {
                     me.cmbCoAuthMode.setValue(0);
@@ -338,12 +416,18 @@ define([
 
             this.chForcesave = new Common.UI.CheckBox({
                 el: $markup.findById('#fms-chb-forcesave'),
-                labelText: this.strForcesave
+                labelText: this.strForcesave,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
 
             this.chAlignGuides = new Common.UI.CheckBox({
                 el: $markup.findById('#fms-chb-align-guides'),
-                labelText: this.strAlignGuides
+                labelText: this.strAlignGuides,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
 
             this.cmbZoom = new Common.UI.ComboBox({
@@ -365,8 +449,14 @@ define([
                     { value: 120, displayValue: "120%" },
                     { value: 150, displayValue: "150%" },
                     { value: 175, displayValue: "175%" },
-                    { value: 200, displayValue: "200%" }
-                ]
+                    { value: 200, displayValue: "200%" },
+                    { value: 300, displayValue: "300%" },
+                    { value: 400, displayValue: "400%" },
+                    { value: 500, displayValue: "500%" }
+                ],
+                dataHint: '2',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
 
             /** coauthoring begin **/
@@ -379,7 +469,10 @@ define([
                     { value: 'none', displayValue: this.txtNone },
                     { value: 'all', displayValue: this.txtAll },
                     { value: 'last', displayValue: this.txtLast }
-                ]
+                ],
+                dataHint: '2',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
 
             this.cmbCoAuthMode = new Common.UI.ComboBox({
@@ -390,7 +483,10 @@ define([
                 data        : [
                     { value: 1, displayValue: this.strFast, descValue: this.strCoAuthModeDescFast},
                     { value: 0, displayValue: this.strStrict, descValue: this.strCoAuthModeDescStrict }
-                ]
+                ],
+                dataHint: '2',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             }).on('selected', function(combo, record) {
                 if (record.value == 1 && (me.chAutosave.getValue()!=='checked'))
                     me.chAutosave.setValue(1);
@@ -403,7 +499,7 @@ define([
             var itemsTemplate =
                 _.template([
                     '<% _.each(items, function(item) { %>',
-                    '<li id="<%= item.id %>" data-value="<%= item.value %>" <% if (item.value === "custom") { %> style="border-top: 1px solid #e5e5e5;margin-top: 5px;" <% } %> ><a tabindex="-1" type="menuitem" <% if (typeof(item.checked) !== "undefined" && item.checked) { %> class="checked" <% } %> ><%= scope.getDisplayValue(item) %></a></li>',
+                    '<li id="<%= item.id %>" data-value="<%= item.value %>" <% if (item.value === "custom") { %> class="border-top" style="margin-top: 5px;padding-top: 5px;" <% } %> ><a tabindex="-1" type="menuitem" <% if (typeof(item.checked) !== "undefined" && item.checked) { %> class="checked" <% } %> ><%= scope.getDisplayValue(item) %></a></li>',
                     '<% }); %>'
                 ].join(''));
             this.cmbFontRender = new Common.UI.ComboBox({
@@ -417,7 +513,10 @@ define([
                     { value: 1, displayValue: this.txtMac },
                     { value: 2, displayValue: this.txtNative },
                     { value: 'custom', displayValue: this.txtCacheMode }
-                ]
+                ],
+                dataHint: '2',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.cmbFontRender.on('selected', _.bind(this.onFontRenderSelected, this));
 
@@ -430,7 +529,10 @@ define([
                     { value: Common.Utils.Metric.c_MetricUnits['cm'], displayValue: this.txtCm },
                     { value: Common.Utils.Metric.c_MetricUnits['pt'], displayValue: this.txtPt },
                     { value: Common.Utils.Metric.c_MetricUnits['inch'], displayValue: this.txtInch }
-                ]
+                ],
+                dataHint: '2',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
 
             this.cmbMacros = new Common.UI.ComboBox({
@@ -443,7 +545,10 @@ define([
                     { value: 2, displayValue: this.txtStopMacros, descValue: this.txtStopMacrosDesc },
                     { value: 0, displayValue: this.txtWarnMacros, descValue: this.txtWarnMacrosDesc },
                     { value: 1, displayValue: this.txtRunMacros, descValue: this.txtRunMacrosDesc }
-                ]
+                ],
+                dataHint: '2',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             }).on('selected', function(combo, record) {
                 me.lblMacrosDesc.text(record.descValue);
             });
@@ -451,7 +556,10 @@ define([
 
             this.chPaste = new Common.UI.CheckBox({
                 el: $markup.findById('#fms-chb-paste-settings'),
-                labelText: this.strPasteButton
+                labelText: this.strPasteButton,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
 
             this.btnAutoCorrect = new Common.UI.Button({
@@ -464,6 +572,33 @@ define([
                 style       : 'width: 160px;',
                 editable    : false,
                 cls         : 'input-group-nr',
+                dataHint: '2',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
+            }).on('selected', function(combo, record) {
+                me.chDarkMode.setDisabled(record.themeType!=='dark');
+            });
+
+            this.chDarkMode = new Common.UI.CheckBox({
+                el: $markup.findById('#fms-chb-dark-mode'),
+                labelText: this.txtDarkMode,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
+            });
+
+            this.cmbReviewHover = new Common.UI.ComboBox({
+                el          : $markup.findById('#fms-cmb-review-hover'),
+                style       : 'width: 160px;',
+                editable    : false,
+                cls         : 'input-group-nr',
+                data        : [
+                    { value: false, displayValue: this.txtChangesBalloons },
+                    { value: true, displayValue: this.txtChangesTip }
+                ],
+                dataHint: '2',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
 
             $markup.find('.btn.primary').each(function(index, el){
@@ -531,6 +666,8 @@ define([
             $('tr.coauth', this.el)[mode.isEdit && mode.canCoAuthoring ? 'show' : 'hide']();
             $('tr.coauth.changes-mode', this.el)[mode.isEdit && !mode.isOffline && mode.canCoAuthoring && mode.canChangeCoAuthoring ? 'show' : 'hide']();
             $('tr.coauth.changes-show', this.el)[mode.isEdit && !mode.isOffline && mode.canCoAuthoring ? 'show' : 'hide']();
+            $('tr.view-review', this.el)[mode.canViewReview ? 'show' : 'hide']();
+            $('tr.spellcheck', this.el)[mode.isEdit && Common.UI.FeaturesManager.canChange('spellcheck') ? 'show' : 'hide']();
             $('tr.comments', this.el)[mode.canCoAuthoring ? 'show' : 'hide']();
             /** coauthoring end **/
 
@@ -590,7 +727,8 @@ define([
             if (this.mode.canForcesave)
                 this.chForcesave.setValue(Common.Utils.InternalSettings.get("de-settings-forcesave"));
 
-            this.chSpell.setValue(Common.Utils.InternalSettings.get("de-settings-spellcheck"));
+            if (Common.UI.FeaturesManager.canChange('spellcheck'))
+                this.chSpell.setValue(Common.Utils.InternalSettings.get("de-settings-spellcheck"));
             this.chAlignGuides.setValue(Common.Utils.InternalSettings.get("de-settings-showsnaplines"));
             this.chCompatible.setValue(Common.Utils.InternalSettings.get("de-settings-compatible"));
 
@@ -602,7 +740,7 @@ define([
 
             var data = [];
             for (var t in Common.UI.Themes.map()) {
-                data.push({value: t, displayValue: Common.UI.Themes.get(t).text});
+                data.push({value: t, displayValue: Common.UI.Themes.get(t).text, themeType: Common.UI.Themes.get(t).type});
             }
 
             if ( data.length ) {
@@ -610,10 +748,20 @@ define([
                 item = this.cmbTheme.store.findWhere({value: Common.UI.Themes.currentThemeId()});
                 this.cmbTheme.setValue(item ? item.get('value') : Common.UI.Themes.defaultThemeId());
             }
+            this.chDarkMode.setValue(Common.UI.Themes.isContentThemeDark());
+            this.chDarkMode.setDisabled(!Common.UI.Themes.isDarkTheme());
+
+            if (this.mode.canViewReview) {
+                value = Common.Utils.InternalSettings.get("de-settings-review-hover-mode");
+                item = this.cmbReviewHover.store.findWhere({value: value});
+                this.cmbReviewHover.setValue(item ? item.get('value') : false);
+            }
         },
 
         applySettings: function() {
             Common.UI.Themes.setTheme(this.cmbTheme.getValue());
+            if (!this.chDarkMode.isDisabled() && (this.chDarkMode.isChecked() !== Common.UI.Themes.isContentThemeDark()))
+                Common.UI.Themes.toggleContentTheme();
             Common.localStorage.setItem("de-settings-inputmode", this.chInputMode.isChecked() ? 1 : 0);
             Common.localStorage.setItem("de-settings-zoom", this.cmbZoom.getValue());
             Common.Utils.InternalSettings.set("de-settings-zoom", Common.localStorage.getItem("de-settings-zoom"));
@@ -634,13 +782,21 @@ define([
                 Common.localStorage.setItem("de-settings-autosave", this.chAutosave.isChecked() ? 1 : 0);
             if (this.mode.canForcesave)
                 Common.localStorage.setItem("de-settings-forcesave", this.chForcesave.isChecked() ? 1 : 0);
-            Common.localStorage.setItem("de-settings-spellcheck", this.chSpell.isChecked() ? 1 : 0);
+            if (Common.UI.FeaturesManager.canChange('spellcheck'))
+                Common.localStorage.setItem("de-settings-spellcheck", this.chSpell.isChecked() ? 1 : 0);
             Common.localStorage.setItem("de-settings-compatible", this.chCompatible.isChecked() ? 1 : 0);
             Common.Utils.InternalSettings.set("de-settings-compatible", this.chCompatible.isChecked() ? 1 : 0);
             Common.Utils.InternalSettings.set("de-settings-showsnaplines", this.chAlignGuides.isChecked());
 
             Common.localStorage.setItem("de-macros-mode", this.cmbMacros.getValue());
             Common.Utils.InternalSettings.set("de-macros-mode", this.cmbMacros.getValue());
+
+            if (this.mode.canViewReview) {
+                var val = this.cmbReviewHover.getValue();
+                Common.localStorage.setBool("de-settings-review-hover-mode", val);
+                Common.Utils.InternalSettings.set("de-settings-review-hover-mode", val);
+                this.mode.reviewHoverMode = val;
+            }
 
             Common.localStorage.setItem("de-settings-paste-button", this.chPaste.isChecked() ? 1 : 0);
 
@@ -738,7 +894,11 @@ define([
         strPasteButton: 'Show Paste Options button when content is pasted',
         txtProofing: 'Proofing',
         strTheme: 'Theme',
-        txtAutoCorrect: 'AutoCorrect options...'
+        txtAutoCorrect: 'AutoCorrect options...',
+        strReviewHover: 'Track Changes Display',
+        txtChangesTip: 'Show by hover in tooltips',
+        txtChangesBalloons: 'Show by click in balloons',
+        txtDarkMode: 'Turn on document dark mode'
     }, DE.Views.FileMenuPanels.Settings || {}));
 
     DE.Views.FileMenuPanels.RecentFiles = Common.UI.BaseView.extend({
@@ -811,31 +971,27 @@ define([
         },
 
         template: _.template([
-            '<h3 style="margin-top: 20px;"><%= scope.fromBlankText %></h3><hr noshade />',
-            '<div class="blank-document">',
-                '<div class="blank-document-btn">',
-                    '<svg class="btn-blank-format">',
-                        '<use xlink:href="#svg-format-blank"></use>',
-                    '</svg>',
-                '</div>',
-                '<div class="blank-document-info">',
-                    '<h3><%= scope.newDocumentText %></h3>',
-                    '<%= scope.newDescriptionText %>',
-                '</div>',
-            '</div>',
-            '<h3><%= scope.fromTemplateText %></h3><hr noshade />',
+            '<h3 style="margin-top: 20px;"><%= scope.txtCreateNew %></h3>',
             '<div class="thumb-list">',
-                '<% _.each(docs, function(item) { %>',
-                    '<div class="thumb-wrap" template="<%= item.url %>">',
-                        '<div class="thumb"',
-                        '<% if (!_.isEmpty(item.image)) { %> ',
-                            ' style="background-image: url(<%= item.image %>);">',
-                        '<% } else { ' +
-                            'print(\"><svg class=\'btn-blank-format\'><use xlink:href=\'#svg-file-template\'></use></svg>\")' +
-                        ' } %>',
-                        '</div>',
-                        '<div class="title"><%= Common.Utils.String.htmlEncode(item.title || item.name || "") %></div>',
+                '<% if (blank) { %> ',
+                '<div class="blank-document">',
+                    '<div class="blank-document-btn" data-hint="2" data-hint-direction="left-top" data-hint-offset="2, 10">',
+                        '<svg class="btn-blank-format"><use xlink:href="#svg-format-blank"></use></svg>',
                     '</div>',
+                    '<div class="title"><%= scope.txtBlank %></div>',
+                '</div>',
+                '<% } %>',
+                '<% _.each(docs, function(item, index) { %>',
+                '<div class="thumb-wrap" template="<%= item.url %>" data-hint="2" data-hint-direction="left-top" data-hint-offset="14, 22">',
+                    '<div class="thumb" ',
+                        '<% if (!_.isEmpty(item.image)) {%> ',
+                        ' style="background-image: url(<%= item.image %>);">',
+                        ' <%} else {' +
+                        'print(\"><svg class=\'btn-blank-format\'><use xlink:href=\'#svg-file-template\'></use></svg>\")' +
+                        ' } %>',
+                    '</div>',
+                    '<div class="title"><%= Common.Utils.String.htmlEncode(item.title || item.name || "") %></div>',
+                '</div>',
                 '<% }) %>',
             '</div>'
         ].join('')),
@@ -844,13 +1000,24 @@ define([
             Common.UI.BaseView.prototype.initialize.call(this,arguments);
 
             this.menu = options.menu;
+            this.docs = options.docs;
+            this.blank = !!options.blank;
         },
 
         render: function() {
             this.$el.html(this.template({
                 scope: this,
-                docs: this.options[0].docs
+                docs: this.docs,
+                blank: this.blank
             }));
+            var docs = (this.blank ? [{title: this.txtBlank}] : []).concat(this.docs);
+            var thumbsElm= this.$el.find('.thumb-wrap, .blank-document');
+            _.each(thumbsElm, function (tmb, index){
+                $(tmb).find('.title').tooltip({
+                    title       : docs[index].title,
+                    placement   : 'cursor'
+                });
+            });
 
             if (_.isUndefined(this.scroller)) {
                 this.scroller = new Common.UI.Scroller({
@@ -878,11 +1045,8 @@ define([
                 this.menu.fireEvent('create:new', [this.menu, e.currentTarget.attributes['template'].value]);
         },
 
-        fromBlankText       : 'From Blank',
-        newDocumentText     : 'New Text Document',
-        newDescriptionText  : 'Create a new blank text document which you will be able to style and format after it is created during the editing. Or choose one of the templates to start a document of a certain type or purpose where some styles have already been pre-applied.',
-        fromTemplateText    : 'From Template',
-        noTemplatesText     : 'There are no templates'
+        txtBlank: 'Blank document',
+        txtCreateNew: 'Create New'
     }, DE.Views.FileMenuPanels.CreateNew || {}));
 
     DE.Views.FileMenuPanels.DocumentInfo = Common.UI.BaseView.extend(_.extend({
@@ -930,36 +1094,50 @@ define([
                         '<td class="left"><label>' + this.txtSpaces + '</label></td>',
                         '<td class="right"><label id="id-info-spaces"></label></td>',
                     '</tr>',
+                    '<tr class="pdf-info">',
+                        '<td class="left"><label>' + this.txtPageSize + '</label></td>',
+                        '<td class="right"><label id="id-info-page-size"></label></td>',
+                    '</tr>',
                     '<tr class="divider"></tr>',
                     '<tr class="divider"></tr>',
                     // '<tr>',
                     //     '<td class="left"><label>' + this.txtEditTime + '</label></td>',
                     //     '<td class="right"><label id="id-info-edittime"></label></td>',
                     // '</tr>',
-                    '<tr>',
+                    '<tr class="docx-info">',
                         '<td class="left"><label>' + this.txtTitle + '</label></td>',
                         '<td class="right"><div id="id-info-title"></div></td>',
                     '</tr>',
-                    '<tr>',
+                    '<tr class="docx-info">',
                         '<td class="left"><label>' + this.txtSubject + '</label></td>',
                         '<td class="right"><div id="id-info-subject"></div></td>',
                     '</tr>',
-                    '<tr>',
+                    '<tr class="docx-info">',
                         '<td class="left"><label>' + this.txtComment + '</label></td>',
                         '<td class="right"><div id="id-info-comment"></div></td>',
                     '</tr>',
-                    '<tr class="divider"></tr>',
-                    '<tr class="divider"></tr>',
+                    '<tr class="divider docx-info"></tr>',
+                    '<tr class="divider docx-info"></tr>',
+                    '<tr class="pdf-info">',
+                        '<td class="left"><label>' + this.txtTitle + '</label></td>',
+                        '<td class="right"><label id="id-lbl-info-title"></label></td>',
+                    '</tr>',
+                    '<tr class="pdf-info">',
+                        '<td class="left"><label>' + this.txtSubject + '</label></td>',
+                        '<td class="right"><label id="id-lbl-info-subject"></label></td>',
+                    '</tr>',
+                    '<tr class="divider pdf-info pdf-title"></tr>',
+                    '<tr class="divider pdf-info pdf-title"></tr>',
                     '<tr>',
                         '<td class="left"><label>' + this.txtModifyDate + '</label></td>',
                         '<td class="right"><label id="id-info-modify-date"></label></td>',
                     '</tr>',
                     '<tr>',
-                            '<td class="left"><label>' + this.txtModifyBy + '</label></td>',
-                            '<td class="right"><label id="id-info-modify-by"></label></td>',
+                        '<td class="left"><label>' + this.txtModifyBy + '</label></td>',
+                        '<td class="right"><label id="id-info-modify-by"></label></td>',
                     '</tr>',
-                    '<tr class="divider modify">',
-                    '<tr class="divider modify">',
+                    '<tr class="divider modify"></tr>',
+                    '<tr class="divider modify"></tr>',
                     '<tr>',
                         '<td class="left"><label>' + this.txtCreated + '</label></td>',
                         '<td class="right"><label id="id-info-date"></label></td>',
@@ -968,7 +1146,28 @@ define([
                          '<td class="left"><label>' + this.txtAppName + '</label></td>',
                          '<td class="right"><label id="id-info-appname"></label></td>',
                     '</tr>',
-                    '<tr>',
+                    '<tr class="pdf-info">',
+                        '<td class="left"><label>' + this.txtAuthor + '</label></td>',
+                        '<td class="right"><label id="id-lbl-info-author"></label></td>',
+                    '</tr>',
+                    '<tr class="divider pdf-info"></tr>',
+                    '<tr class="pdf-info">',
+                         '<td class="left"><label>' + this.txtPdfProducer + '</label></td>',
+                         '<td class="right"><label id="id-info-pdf-produce"></label></td>',
+                    '</tr>',
+                    '<tr class="pdf-info">',
+                         '<td class="left"><label>' + this.txtPdfVer + '</label></td>',
+                         '<td class="right"><label id="id-info-pdf-ver"></label></td>',
+                    '</tr>',
+                    '<tr class="pdf-info">',
+                         '<td class="left"><label>' + this.txtPdfTagged + '</label></td>',
+                         '<td class="right"><label id="id-info-pdf-tagged"></label></td>',
+                    '</tr>',
+                    '<tr class="pdf-info">',
+                         '<td class="left"><label>' + this.txtFastWV + '</label></td>',
+                         '<td class="right"><label id="id-info-fast-wv"></label></td>',
+                    '</tr>',
+                    '<tr class="docx-info">',
                         '<td class="left" style="vertical-align: top;"><label style="margin-top: 3px;">' + this.txtAuthor + '</label></td>',
                         '<td class="right" style="vertical-align: top;"><div id="id-info-author">',
                             '<table>',
@@ -985,14 +1184,13 @@ define([
                 '<table class="main" style="margin: 10px 0;">',
                     '<tr>',
                         '<td class="left"></td>',
-                        '<td class="right"><button id="fminfo-btn-apply" class="btn normal dlg-btn primary"><%= scope.okButtonText %></button></td>',
+                        '<td class="right"><button id="fminfo-btn-apply" class="btn normal dlg-btn primary" data-hint="2" data-hint-direction="bottom" data-hint-offset="big"><%= scope.okButtonText %></button></td>',
                     '</tr>',
                 '</table>',
             '</div>'
             ].join(''));
 
             this.infoObj = {PageCount: 0, WordsCount: 0, ParagraphCount: 0, SymbolsCount: 0, SymbolsWSCount:0};
-            this.inProgress = false;
             this.menu = options.menu;
             this.coreProps = null;
             this.authors = [];
@@ -1014,6 +1212,7 @@ define([
             this.lblStatParagraphs = $markup.findById('#id-info-paragraphs');
             this.lblStatSymbols = $markup.findById('#id-info-symbols');
             this.lblStatSpaces = $markup.findById('#id-info-spaces');
+            this.lblPageSize = $markup.findById('#id-info-pages-size');
             // this.lblEditTime = $markup.find('#id-info-edittime');
 
             // edited info
@@ -1032,19 +1231,28 @@ define([
                 el          : $markup.findById('#id-info-title'),
                 style       : 'width: 200px;',
                 placeHolder : this.txtAddText,
-                validateOnBlur: false
+                validateOnBlur: false,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             }).on('keydown:before', keyDownBefore);
             this.inputSubject = new Common.UI.InputField({
                 el          : $markup.findById('#id-info-subject'),
                 style       : 'width: 200px;',
                 placeHolder : this.txtAddText,
-                validateOnBlur: false
+                validateOnBlur: false,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             }).on('keydown:before', keyDownBefore);
             this.inputComment = new Common.UI.InputField({
                 el          : $markup.findById('#id-info-comment'),
                 style       : 'width: 200px;',
                 placeHolder : this.txtAddText,
-                validateOnBlur: false
+                validateOnBlur: false,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             }).on('keydown:before', keyDownBefore);
 
             // modify info
@@ -1056,7 +1264,7 @@ define([
             this.lblApplication = $markup.findById('#id-info-appname');
             this.tblAuthor = $markup.findById('#id-info-author table');
             this.trAuthor = $markup.findById('#id-info-add-author').closest('tr');
-            this.authorTpl = '<tr><td><div style="display: inline-block;width: 200px;"><input type="text" spellcheck="false" class="form-control" readonly="true" value="{0}" ></div><div class="close img-commonctrl"></div></td></tr>';
+            this.authorTpl = '<tr><td><div style="display: inline-block;width: 200px;"><input type="text" spellcheck="false" class="form-control" readonly="true" value="{0}"></div><div class="tool close img-commonctrl" data-hint="2" data-hint-direction="right" data-hint-offset="small"></div></td></tr>';
 
             this.tblAuthor.on('click', function(e) {
                 var btn = $markup.find(e.target);
@@ -1073,7 +1281,10 @@ define([
                 el          : $markup.findById('#id-info-add-author'),
                 style       : 'width: 200px;',
                 validateOnBlur: false,
-                placeHolder: this.txtAddAuthor
+                placeHolder: this.txtAddAuthor,
+                dataHint: '2',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             }).on('changed:after', function(input, newValue, oldValue, e) {
                 if (newValue == oldValue) return;
 
@@ -1094,6 +1305,16 @@ define([
                     !isFromApply && me.inputAuthor.setValue('');
                 }
             }).on('keydown:before', keyDownBefore);
+
+            // pdf info
+            this.lblPageSize = $markup.findById('#id-info-page-size');
+            this.lblPdfTitle = $markup.findById('#id-lbl-info-title');
+            this.lblPdfSubject = $markup.findById('#id-lbl-info-subject');
+            this.lblPdfAuthor = $markup.findById('#id-lbl-info-author');
+            this.lblPdfVer = $markup.findById('#id-info-pdf-ver');
+            this.lblPdfTagged = $markup.findById('#id-info-pdf-tagged');
+            this.lblPdfProducer = $markup.findById('#id-info-pdf-produce');
+            this.lblFastWV = $markup.findById('#id-info-fast-wv');
 
             this.btnApply = new Common.UI.Button({
                 el: $markup.findById('#fminfo-btn-apply')
@@ -1171,9 +1392,15 @@ define([
                 this._ShowHideDocInfo(false);
             $('tr.divider.general', this.el)[visible?'show':'hide']();
 
+            var pdfProps = (this.api) ? this.api.asc_getPdfProps() : null;
             var appname = (this.api) ? this.api.asc_getAppProps() : null;
             if (appname) {
+                $('.pdf-info', this.el).hide();
                 appname = (appname.asc_getApplication() || '') + (appname.asc_getAppVersion() ? ' ' : '') + (appname.asc_getAppVersion() || '');
+                this.lblApplication.text(appname);
+            } else if (pdfProps) {
+                $('.docx-info', this.el).hide();
+                appname = pdfProps ? pdfProps.Creator || '' : '';
                 this.lblApplication.text(appname);
             }
             this._ShowHideInfoItem(this.lblApplication, !!appname);
@@ -1184,7 +1411,8 @@ define([
                 if (value)
                     this.lblDate.text(value.toLocaleString(this.mode.lang, {year: 'numeric', month: '2-digit', day: '2-digit'}) + ' ' + value.toLocaleString(this.mode.lang, {timeStyle: 'short'}));
                 this._ShowHideInfoItem(this.lblDate, !!value);
-            }
+            } else if (pdfProps)
+                this.updatePdfInfo(pdfProps);
         },
 
         updateFileInfo: function() {
@@ -1196,14 +1424,6 @@ define([
                 value;
 
             this.coreProps = props;
-            // var app = (this.api) ? this.api.asc_getAppProps() : null;
-            // if (app) {
-            //     value = app.asc_getTotalTime();
-            //     if (value)
-            //         this.lblEditTime.text(value + ' ' + this.txtMinutes);
-            // }
-            // this._ShowHideInfoItem(this.lblEditTime, !!value);
-
             if (props) {
                 var visible = false;
                 value = props.asc_getModified();
@@ -1236,6 +1456,86 @@ define([
                 !this.mode.isEdit && this._ShowHideInfoItem(this.tblAuthor, !!this.authors.length);
             }
             this.SetDisabled();
+        },
+
+        updatePdfInfo: function(props) {
+            if (!this.rendered)
+                return;
+
+            var me = this,
+                value;
+
+            if (props) {
+                value = props.CreationDate;
+                if (value) {
+                    value = new Date(value);
+                    this.lblDate.text(value.toLocaleString(this.mode.lang, {year: 'numeric', month: '2-digit', day: '2-digit'}) + ' ' + value.toLocaleString(this.mode.lang, {timeStyle: 'short'}));
+                }
+                this._ShowHideInfoItem(this.lblDate, !!value);
+
+                var visible = false;
+                value = props.ModDate;
+                if (value) {
+                    value = new Date(value);
+                    this.lblModifyDate.text(value.toLocaleString(this.mode.lang, {year: 'numeric', month: '2-digit', day: '2-digit'}) + ' ' + value.toLocaleString(this.mode.lang, {timeStyle: 'short'}));
+                }
+                visible = this._ShowHideInfoItem(this.lblModifyDate, !!value) || visible;
+                visible = this._ShowHideInfoItem(this.lblModifyBy, false) || visible;
+                $('tr.divider.modify', this.el)[visible?'show':'hide']();
+
+                if (props.PageWidth && props.PageHeight && (typeof props.PageWidth === 'number') && (typeof props.PageHeight === 'number')) {
+                    var w = props.PageWidth,
+                        h = props.PageHeight;
+                    switch (Common.Utils.Metric.getCurrentMetric()) {
+                        case Common.Utils.Metric.c_MetricUnits.cm:
+                            w = parseFloat((w* 25.4 / 72000.).toFixed(2));
+                            h = parseFloat((h* 25.4 / 72000.).toFixed(2));
+                            break;
+                        case Common.Utils.Metric.c_MetricUnits.pt:
+                            w = parseFloat((w/100.).toFixed(2));
+                            h = parseFloat((h/100.).toFixed(2));
+                            break;
+                        case Common.Utils.Metric.c_MetricUnits.inch:
+                            w = parseFloat((w/7200.).toFixed(2));
+                            h = parseFloat((h/7200.).toFixed(2));
+                            break;
+                    }
+                    this.lblPageSize.text(w + ' ' + Common.Utils.Metric.getCurrentMetricName() + ' x ' + h + ' ' + Common.Utils.Metric.getCurrentMetricName());
+                    this._ShowHideInfoItem(this.lblPageSize, true);
+                } else
+                    this._ShowHideInfoItem(this.lblPageSize, false);
+
+                value = props.Title;
+                value && this.lblPdfTitle.text(value);
+                visible = this._ShowHideInfoItem(this.lblPdfTitle, !!value);
+
+                value = props.Subject;
+                value && this.lblPdfSubject.text(value);
+                visible = this._ShowHideInfoItem(this.lblPdfSubject, !!value) || visible;
+                $('tr.divider.pdf-title', this.el)[visible?'show':'hide']();
+
+                value = props.Author;
+                value && this.lblPdfAuthor.text(value);
+                this._ShowHideInfoItem(this.lblPdfAuthor, !!value);
+
+                value = props.Version;
+                value && this.lblPdfVer.text(value);
+                this._ShowHideInfoItem(this.lblPdfVer, !!value);
+
+                value = props.Tagged;
+                if (value !== undefined)
+                    this.lblPdfTagged.text(value===true ? this.txtYes : this.txtNo);
+                this._ShowHideInfoItem(this.lblPdfTagged, value !== undefined);
+
+                value = props.Producer;
+                value && this.lblPdfProducer.text(value);
+                this._ShowHideInfoItem(this.lblPdfProducer, !!value);
+
+                value = props.FastWebView;
+                if (value !== undefined)
+                    this.lblFastWV.text(value===true ? this.txtYes : this.txtNo);
+                this._ShowHideInfoItem(this.lblFastWV, value !== undefined);
+            }
         },
 
         _ShowHideInfoItem: function(el, visible) {
@@ -1290,11 +1590,8 @@ define([
 
         _onGetDocInfoStart: function() {
             var me = this;
-            this.inProgress = true;
             this.infoObj = {PageCount: 0, WordsCount: 0, ParagraphCount: 0, SymbolsCount: 0, SymbolsWSCount:0};
-            _.defer(function(){
-                if (!me.inProgress) return;
-
+            this.timerLoading = setTimeout(function(){
                 me.lblStatPages.text(me.txtLoading);
                 me.lblStatWords.text(me.txtLoading);
                 me.lblStatParagraphs.text(me.txtLoading);
@@ -1305,6 +1602,7 @@ define([
 
         _onDocInfo: function(obj) {
             if (obj) {
+                clearTimeout(this.timerLoading);
                 if (obj.get_PageCount()>-1)
                     this.infoObj.PageCount = obj.get_PageCount();
                 if (obj.get_WordsCount()>-1)
@@ -1315,11 +1613,24 @@ define([
                     this.infoObj.SymbolsCount = obj.get_SymbolsCount();
                 if (obj.get_SymbolsWSCount()>-1)
                     this.infoObj.SymbolsWSCount = obj.get_SymbolsWSCount();
+                if (!this.timerDocInfo) { // start timer for filling info
+                    var me = this;
+                    this.timerDocInfo = setInterval(function(){
+                        me.fillDocInfo();
+                    }, 300);
+                    this.fillDocInfo();
+                }
             }
         },
 
         _onGetDocInfoEnd: function() {
-            this.inProgress = false;
+            clearTimeout(this.timerLoading);
+            clearInterval(this.timerDocInfo);
+            this.timerLoading = this.timerDocInfo = undefined;
+            this.fillDocInfo();
+        },
+
+        fillDocInfo:  function() {
             this.lblStatPages.text(this.infoObj.PageCount);
             this.lblStatWords.text(this.infoObj.WordsCount);
             this.lblStatParagraphs.text(this.infoObj.ParagraphCount);
@@ -1379,7 +1690,15 @@ define([
         txtAddAuthor: 'Add Author',
         txtAddText: 'Add Text',
         txtMinutes: 'min',
-        okButtonText: 'Apply'
+        okButtonText: 'Apply',
+        txtPageSize: 'Page Size',
+        txtPdfVer: 'PDF Version',
+        txtPdfTagged: 'Tagged PDF',
+        txtFastWV: 'Fast Web View',
+        txtYes: 'Yes',
+        txtNo: 'No',
+        txtPdfProducer: 'PDF Producer'
+
     }, DE.Views.FileMenuPanels.DocumentInfo || {}));
 
     DE.Views.FileMenuPanels.DocumentRights = Common.UI.BaseView.extend(_.extend({
@@ -1732,8 +2051,8 @@ define([
                         '<td colspan="2"><label style="cursor: default;"><%= tipText %></label></td>',
                     '</tr>',
                     '<tr>',
-                        '<td><label class="link signature-view-link">' + me.txtView + '</label></td>',
-                        '<td align="right"><label class="link signature-edit-link <% if (!hasSigned) { %>hidden<% } %>">' + me.txtEdit + '</label></td>',
+                        '<td><label class="link signature-view-link" data-hint="2" data-hint-direction="bottom" data-hint-offset="medium">' + me.txtView + '</label></td>',
+                        '<td align="right"><label class="link signature-edit-link <% if (!hasSigned) { %>hidden<% } %>" data-hint="2" data-hint-direction="bottom" data-hint-offset="medium">' + me.txtEdit + '</label></td>',
                     '</tr>',
                 '</table>'
             ].join(''));

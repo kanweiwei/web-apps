@@ -72,7 +72,11 @@ define([
                     'menu:show': me.onFileMenu.bind(me, 'show')
                 },
                 'Statusbar': {
-                    'sheet:changed': me.onApiSheetChanged.bind(me)
+                    'sheet:changed': me.onApiSheetChanged.bind(me),
+                    'view:compact': function (statusbar, state) {
+                        me.header.mnuitemCompactStatusBar.setChecked(state, true);
+                        me.viewport.vlayout.getItem('statusbar').height = state ? 25 : 50;
+                    }
                 },
                 'Toolbar': {
                     'render:before' : function (toolbar) {
@@ -114,6 +118,11 @@ define([
                         if ( me.header.btnSave )
                             me.header.btnSave.setDisabled(state);
                     }
+                },
+                'ViewTab': {
+                    'freeze:shadow': function (checked) {
+                        me.header.mnuitemFreezePanesShadow.setChecked(checked, true);
+                    }
                 }
             });
 
@@ -143,7 +152,7 @@ define([
 
             var _intvars = Common.Utils.InternalSettings;
             var $filemenu = $('.toolbar-fullview-panel');
-            $filemenu.css('top', _intvars.get('toolbar-height-tabs'));
+            $filemenu.css('top', Common.UI.LayoutManager.isElementVisible('toolbar') ? _intvars.get('toolbar-height-tabs') : 0);
 
             me.viewport.$el.attr('applang', me.appConfig.lang.split(/[\-_]/)[0]);
 
@@ -171,7 +180,7 @@ define([
                 _intvars.set('toolbar-height-compact', _tabs_new_height);
                 _intvars.set('toolbar-height-normal', _tabs_new_height + _intvars.get('toolbar-height-controls'));
 
-                $filemenu.css('top', _tabs_new_height + _intvars.get('document-title-height'));
+                $filemenu.css('top', (Common.UI.LayoutManager.isElementVisible('toolbar') ? _tabs_new_height : 0) + _intvars.get('document-title-height'));
             }
 
             if ( config.customization ) {
@@ -209,6 +218,15 @@ define([
                         }
                     }, this));
                 }
+
+                me.header.mnuitemCompactStatusBar = new Common.UI.MenuItem({
+                    caption: me.header.textHideStatusBar,
+                    checked: Common.localStorage.getBool("sse-compact-statusbar", true),
+                    checkable: true,
+                    value: 'statusbar'
+                });
+                if ( config.canBrandingExt && config.customization && config.customization.statusBar === false || !Common.UI.LayoutManager.isElementVisible('statusBar'))
+                    me.header.mnuitemCompactStatusBar.hide();
 
                 me.header.mnuitemHideFormulaBar = new Common.UI.MenuItem({
                     caption     : me.textHideFBar,
@@ -250,7 +268,7 @@ define([
 
                 me.header.mnuZoom = new Common.UI.MenuItem({
                     template: _.template([
-                        '<div id="hdr-menu-zoom" class="menu-zoom" style="height: 25px;" ',
+                        '<div id="hdr-menu-zoom" class="menu-zoom" style="height: 26px;" ',
                             '<% if(!_.isUndefined(options.stopPropagation)) { %>',
                             'data-stopPropagation="true"',
                             '<% } %>', '>',
@@ -275,6 +293,7 @@ define([
                         items: [
                             me.header.mnuitemCompactToolbar,
                             me.header.mnuitemHideFormulaBar,
+                            me.header.mnuitemCompactStatusBar,
                             {caption:'--'},
                             me.header.mnuitemHideHeadings,
                             me.header.mnuitemHideGridlines,
@@ -294,7 +313,7 @@ define([
                     me.header.mnuitemHideHeadings.hide();
                     me.header.mnuitemHideGridlines.hide();
                     me.header.mnuitemFreezePanes.hide();
-                    menu.items[5].hide();
+                    menu.items[6].hide();
                     if (!config.canViewComments) { // show advanced settings for editing and commenting mode
                         // mnuitemAdvSettings.hide();
                         // menu.items[9].hide();
@@ -305,7 +324,7 @@ define([
                     if ( btn == 'up' ) {
                         var _f = Math.floor(this.api.asc_getZoom() * 10)/10;
                         _f += .1;
-                        if (_f > 0 && !(_f > 2.))
+                        if (_f > 0 && !(_f > 5.))
                             this.api.asc_setZoom(_f);
                     } else {
                         _f = Math.ceil(this.api.asc_getZoom() * 10)/10;
@@ -356,10 +375,11 @@ define([
                 this.api.asc_Resize();
             }, this);
 
-            var leftPanel = $('#left-menu');
+            var leftPanel = $('#left-menu'),
+                histPanel = $('#left-panel-history');
             this.viewport.hlayout.on('layout:resizedrag', function() {
                 this.api.asc_Resize();
-                Common.localStorage.setItem('sse-mainmenu-width',leftPanel.width());
+                Common.localStorage.setItem('sse-mainmenu-width',histPanel.is(':visible') ? (histPanel.width()+SCALE_MIN) : leftPanel.width());
             }, this);
 
             this.boxSdk = $('#editor_sdk');
@@ -378,6 +398,14 @@ define([
                 this.viewport.vlayout.doLayout();
                 this.viewport.celayout.doLayout();
             case 'rightmenu':
+                this.viewport.hlayout.doLayout();
+                break;
+            case 'history':
+                var panel = this.viewport.hlayout.items[1];
+                if (panel.resize.el) {
+                    this.boxSdk.css('border-left', '');
+                    panel.resize.el.show();
+                }
                 this.viewport.hlayout.doLayout();
                 break;
             case 'leftmenu':
@@ -482,6 +510,7 @@ define([
 
             switch ( item.value ) {
             case 'toolbar': me.header.fireEvent('toolbar:setcompact', [menu, item.isChecked()]); break;
+            case 'statusbar': me.header.fireEvent('statusbar:setcompact', [menu, item.isChecked()]); break;
             case 'formula': me.header.fireEvent('formulabar:hide', [item.isChecked()]); break;
             case 'headings': me.api.asc_setDisplayHeadings(!item.isChecked()); break;
             case 'gridlines': me.api.asc_setDisplayGridlines(!item.isChecked()); break;
@@ -489,6 +518,7 @@ define([
             case 'freezepanesshadow':
                 me.api.asc_setFrozenPaneBorderType(item.isChecked() ? Asc.c_oAscFrozenPaneBorderType.shadow : Asc.c_oAscFrozenPaneBorderType.line);
                 Common.localStorage.setBool('sse-freeze-shadow', item.isChecked());
+                me.header.fireEvent('toolbar:freezeshadow', [item.isChecked()]);
                 break;
             case 'advanced': me.header.fireEvent('file:settings', me.header); break;
             }
@@ -505,7 +535,7 @@ define([
             }
         },
 
-        disableEditing: function (disabled) {
+        SetDisabled: function (disabled) {
             this.viewmode = disabled;
             this.header.mnuitemHideHeadings.setDisabled(disabled);
             this.header.mnuitemHideGridlines.setDisabled(disabled);

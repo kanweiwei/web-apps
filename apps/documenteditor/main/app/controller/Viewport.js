@@ -105,6 +105,14 @@ define([
                         if ( me.header.btnSave )
                             me.header.btnSave.setDisabled(state);
                     }
+                },
+                'ViewTab': {
+                    'rulers:hide': function (state) {
+                        me.header.mnuitemHideRulers.setChecked(state, true);
+                    },
+                    'statusbar:hide': function (view, state) {
+                        me.header.mnuitemHideStatusBar.setChecked(state, true);
+                    }
                 }
             });
         },
@@ -153,6 +161,8 @@ define([
 
             Common.NotificationCenter.on('app:face', this.onAppShowed.bind(this));
             Common.NotificationCenter.on('app:ready', this.onAppReady.bind(this));
+            Common.NotificationCenter.on('uitheme:changed', this.onThemeChanged.bind(this));
+            Common.NotificationCenter.on('contenttheme:dark', this.onContentThemeChangedToDark.bind(this));
         },
 
         onAppShowed: function (config) {
@@ -161,11 +171,11 @@ define([
 
             var _intvars = Common.Utils.InternalSettings;
             var $filemenu = $('.toolbar-fullview-panel');
-            $filemenu.css('top', _intvars.get('toolbar-height-tabs'));
+            $filemenu.css('top', Common.UI.LayoutManager.isElementVisible('toolbar') ? _intvars.get('toolbar-height-tabs') : 0);
 
             me.viewport.$el.attr('applang', me.appConfig.lang.split(/[\-_]/)[0]);
 
-            if ( !(config.isEdit || config.isRestrictedEdit && config.canFillForms && config.canFeatureForms) ||
+            if ( !(config.isEdit || config.isRestrictedEdit && config.canFillForms && config.isFormCreator) ||
                 ( !Common.localStorage.itemExists("de-compact-toolbar") &&
                 config.customization && config.customization.compactToolbar )) {
 
@@ -195,7 +205,7 @@ define([
                 _intvars.set('toolbar-height-compact', _tabs_new_height);
                 _intvars.set('toolbar-height-normal', _tabs_new_height + _intvars.get('toolbar-height-controls'));
 
-                $filemenu.css('top', _tabs_new_height + _intvars.get('document-title-height'));
+                $filemenu.css('top', (Common.UI.LayoutManager.isElementVisible('toolbar') ? _tabs_new_height : 0) + _intvars.get('document-title-height'));
 
                 toolbar = me.getApplication().getController('Toolbar').getView();
                 toolbar.btnCollabChanges = me.header.btnSave;
@@ -205,8 +215,8 @@ define([
         onAppReady: function (config) {
             var me = this;
             if ( me.header.btnOptions ) {
-                var compactview = !(config.isEdit || config.isRestrictedEdit && config.canFillForms && config.canFeatureForms);
-                if ( config.isEdit || config.isRestrictedEdit && config.canFillForms && config.canFeatureForms) {
+                var compactview = !(config.isEdit || config.isRestrictedEdit && config.canFillForms && config.isFormCreator);
+                if ( config.isEdit || config.isRestrictedEdit && config.canFillForms && config.isFormCreator) {
                     if ( Common.localStorage.itemExists("de-compact-toolbar") ) {
                         compactview = Common.localStorage.getBool("de-compact-toolbar");
                     } else
@@ -229,24 +239,31 @@ define([
                     }, this));
                 }
 
-                var mnuitemHideStatusBar = new Common.UI.MenuItem({
+                me.header.mnuitemHideStatusBar = new Common.UI.MenuItem({
                     caption: me.header.textHideStatusBar,
                     checked: Common.localStorage.getBool("de-hidden-status"),
                     checkable: true,
                     value: 'statusbar'
                 });
 
-                if ( config.canBrandingExt && config.customization && config.customization.statusBar === false )
-                    mnuitemHideStatusBar.hide();
+                if ( config.canBrandingExt && config.customization && config.customization.statusBar === false || !Common.UI.LayoutManager.isElementVisible('statusBar'))
+                    me.header.mnuitemHideStatusBar.hide();
 
-                var mnuitemHideRulers = new Common.UI.MenuItem({
+                me.header.mnuitemHideRulers = new Common.UI.MenuItem({
                     caption: me.header.textHideLines,
                     checked: Common.Utils.InternalSettings.get("de-hidden-rulers"),
                     checkable: true,
                     value: 'rulers'
                 });
                 if (!config.isEdit)
-                    mnuitemHideRulers.hide();
+                    me.header.mnuitemHideRulers.hide();
+
+                me.header.menuItemsDarkMode = new Common.UI.MenuItem({
+                    caption: me.txtDarkMode,
+                    checkable: true,
+                    checked: Common.UI.Themes.isContentThemeDark(),
+                    value: 'mode:dark'
+                });
 
                 me.header.mnuitemFitPage = new Common.UI.MenuItem({
                     caption: me.textFitPage,
@@ -264,7 +281,7 @@ define([
 
                 me.header.mnuZoom = new Common.UI.MenuItem({
                     template: _.template([
-                        '<div id="hdr-menu-zoom" class="menu-zoom" style="height: 25px;" ',
+                        '<div id="hdr-menu-zoom" class="menu-zoom" style="height: 26px;" ',
                             '<% if(!_.isUndefined(options.stopPropagation)) { %>',
                                 'data-stopPropagation="true"',
                             '<% } %>', '>',
@@ -283,8 +300,10 @@ define([
                         style: 'min-width: 180px;',
                         items: [
                             me.header.mnuitemCompactToolbar,
-                            mnuitemHideStatusBar,
-                            mnuitemHideRulers,
+                            me.header.mnuitemHideStatusBar,
+                            me.header.mnuitemHideRulers,
+                            {caption:'--'},
+                            me.header.menuItemsDarkMode,
                             {caption:'--'},
                             me.header.mnuitemFitPage,
                             me.header.mnuitemFitWidth,
@@ -314,6 +333,10 @@ define([
                 })).on('click', _on_btn_zoom.bind(me, 'up'));
 
                 me.header.btnOptions.menu.on('item:click', me.onOptionsItemClick.bind(this));
+                if ( !Common.UI.Themes.isDarkTheme() ) {
+                    me.header.menuItemsDarkMode.hide();
+                    me.header.menuItemsDarkMode.$el.prev('.divider').hide();
+                }
             }
         },
 
@@ -354,6 +377,22 @@ define([
             this.api.Resize();
         },
 
+        onThemeChanged: function (id) {
+            if ( this.header.menuItemsDarkMode ) {
+                var current_dark = Common.UI.Themes.isDarkTheme();
+                var menuItem = this.header.menuItemsDarkMode;
+                menuItem.setVisible(current_dark);
+                menuItem.$el.prev('.divider')[current_dark ? 'show' : 'hide']();
+
+                menuItem.setChecked(Common.UI.Themes.isContentThemeDark());
+            }
+        },
+
+        onContentThemeChangedToDark: function (isdark) {
+            if ( this.header.menuItemsDarkMode )
+                this.header.menuItemsDarkMode.setChecked(isdark, true);
+        },
+
         onWindowResize: function(e) {
             this.onLayoutChanged('window');
             Common.NotificationCenter.trigger('window:resize');
@@ -390,6 +429,7 @@ define([
                 Common.Utils.InternalSettings.set("de-hidden-rulers", item.isChecked());
                 Common.NotificationCenter.trigger('layout:changed', 'rulers');
                 Common.NotificationCenter.trigger('edit:complete', me.header);
+                me.header.fireEvent('rulers:hide', [item.isChecked()]);
                 break;
             case 'zoom:page':
                 item.isChecked() ? me.api.zoomFitToPage() : me.api.zoomCustomMode();
@@ -400,6 +440,7 @@ define([
                 Common.NotificationCenter.trigger('edit:complete', me.header);
                 break;
             case 'advanced': me.header.fireEvent('file:settings', me.header); break;
+            case 'mode:dark': Common.UI.Themes.toggleContentTheme(); break;
             }
         },
 
@@ -420,6 +461,7 @@ define([
         },
 
         textFitPage: 'Fit to Page',
-        textFitWidth: 'Fit to Width'
+        textFitWidth: 'Fit to Width',
+        txtDarkMode: 'Dark mode'
     }, DE.Controllers.Viewport));
 });

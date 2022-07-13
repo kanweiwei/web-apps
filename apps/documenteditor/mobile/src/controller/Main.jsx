@@ -16,7 +16,9 @@ import EditorUIController from '../lib/patch';
 import ErrorController from "./Error";
 import LongActionsController from "./LongActions";
 import PluginsController from '../../../../common/mobile/lib/controller/Plugins.jsx';
-
+import EncodingController from "./Encoding";
+import DropdownListController from "./DropdownList";
+import { Device } from '../../../../common/mobile/utils/device';
 @inject(
     "users",
     "storeAppOptions",
@@ -38,6 +40,7 @@ class MainController extends Component {
 
         this.LoadingDocument = -256;
         this.ApplyEditRights = -255;
+        this.boxSdk = $$('#editor_sdk');
 
         this._state = {
             licenseType: false,
@@ -77,8 +80,8 @@ class MainController extends Component {
             };
 
             const loadConfig = data => {
-                const _t = this._t;
-
+                const { t } = this.props;
+                const _t = t('Main', {returnObjects:true});
                 EditorUIController.isSupportEditFeature();
 
                 this.editorConfig = Object.assign({}, this.editorConfig, data.config);
@@ -127,16 +130,24 @@ class MainController extends Component {
                     docInfo.put_Token(data.doc.token);
                     docInfo.put_Permissions(_permissions);
                     docInfo.put_EncryptedInfo(this.editorConfig.encryptionKeys);
-
+                    docInfo.put_Lang(this.editorConfig.lang);
+                    docInfo.put_Mode(this.editorConfig.mode);
+                    
                     let enable = !this.editorConfig.customization || (this.editorConfig.customization.macros !== false);
                     docInfo.asc_putIsEnabledMacroses(!!enable);
                     enable = !this.editorConfig.customization || (this.editorConfig.customization.plugins !== false);
                     docInfo.asc_putIsEnabledPlugins(!!enable);
 
-                    const type = /^(?:(pdf|djvu|xps|oxps))$/.exec(data.doc.fileType);
+                    let type = /^(?:(pdf|djvu|xps|oxps))$/.exec(data.doc.fileType);
                     if (type && typeof type[1] === 'string') {
                         this.permissions.edit = this.permissions.review = false;
                     }
+                }
+
+                let type = data.doc ? /^(?:(oform))$/.exec(data.doc.fileType) : false;
+                if (type && typeof type[1] === 'string') {
+                    (this.permissions.fillForms===undefined) && (this.permissions.fillForms = (this.permissions.edit!==false));
+                    this.permissions.edit = this.permissions.review = this.permissions.comment = false;
                 }
 
                 this.api.asc_registerCallback('asc_onGetEditorPermissions', onEditorPermissions);
@@ -166,13 +177,15 @@ class MainController extends Component {
             const onEditorPermissions = params => {
                 const licType = params.asc_getLicenseType();
 
+                const { t } = this.props;
+                const _t = t('Main', {returnObjects:true});
                 // check licType
                 if (Asc.c_oLicenseResult.Expired === licType ||
                     Asc.c_oLicenseResult.Error === licType ||
                     Asc.c_oLicenseResult.ExpiredTrial === licType) {
                     f7.dialog.create({
-                        title   : this._t.titleLicenseExp,
-                        text    : this._t.warnLicenseExp
+                        title   : _t.titleLicenseExp,
+                        text    : _t.warnLicenseExp
                     }).open();
                     return;
                 }
@@ -209,6 +222,8 @@ class MainController extends Component {
 
                 Common.Notifications.trigger('preloader:close');
                 Common.Notifications.trigger('preloader:endAction', Asc.c_oAscAsyncActionType['BlockInteraction'], this.LoadingDocument);
+
+                appOptions.isRestrictedEdit && appOptions.canFillForms && this.api.asc_SetHighlightRequiredFields(true);
 
                 let value = LocalStorage.getItem("de-settings-zoom");
                 const zf = (value !== null) ? parseInt(value) : (appOptions.customization && appOptions.customization.zoom ? parseInt(appOptions.customization.zoom) : 100);
@@ -270,14 +285,22 @@ class MainController extends Component {
                 .then ( result => {
                     window["flat_desine"] = true;
                     const {t} = this.props;
+                    let _translate = t('Main.SDK', {returnObjects:true});
+                    for (let item in _translate) {
+                        if (_translate.hasOwnProperty(item)) {
+                            const str = _translate[item];
+                            if (item[item.length-1]===' ' && str[str.length-1]!==' ')
+                                _translate[item] += ' ';
+                        }
+                    }
                     this.api = new Asc.asc_docs_api({
                         'id-view'  : 'editor_sdk',
                         'mobile'   : true,
-                        'translate': t('Main.SDK', {returnObjects:true})
+                        'translate': _translate
                     });
 
                     Common.Notifications.trigger('engineCreated', this.api);
-                    Common.EditorApi = {get: () => this.api};
+                    // Common.EditorApi = {get: () => this.api};
 
                     // Set font rendering mode
                     let value = LocalStorage.getItem("de-settings-fontrender");
@@ -382,7 +405,9 @@ class MainController extends Component {
                 this.api.asc_continueSaving();
             }, 500);
 
-            return this._t.leavePageText;
+            const { t } = this.props;
+            const _t = t('Main', {returnObjects:true});
+            return _t.leavePageText;
         }
     }
 
@@ -394,7 +419,8 @@ class MainController extends Component {
     onLicenseChanged (params) {
         const appOptions = this.props.storeAppOptions;
         const licType = params.asc_getLicenseType();
-        if (licType !== undefined && appOptions.canEdit && appOptions.config.mode !== 'view' &&
+    
+        if (licType !== undefined && (appOptions.canEdit || appOptions.isRestrictedEdit) && appOptions.config.mode !== 'view' &&
             (licType === Asc.c_oLicenseResult.Connections || licType === Asc.c_oLicenseResult.UsersCount || licType === Asc.c_oLicenseResult.ConnectionsOS || licType === Asc.c_oLicenseResult.UsersCountOS
                 || licType === Asc.c_oLicenseResult.SuccessLimit && (appOptions.trialMode & Asc.c_oLicenseMode.Limited) !== 0))
             this._state.licenseType = licType;
@@ -403,7 +429,9 @@ class MainController extends Component {
     }
 
     applyLicense () {
-        const _t = this._t;
+        const { t } = this.props;
+        const _t = t('Main', {returnObjects:true});
+
         const warnNoLicense  = _t.warnNoLicense.replace(/%1/g, __COMPANY_NAME__);
         const warnNoLicenseUsers = _t.warnNoLicenseUsers.replace(/%1/g, __COMPANY_NAME__);
         const textNoLicenseTitle = _t.textNoLicenseTitle.replace(/%1/g, __COMPANY_NAME__);
@@ -496,7 +524,8 @@ class MainController extends Component {
 
     onServerVersion (buildVersion) {
         if (this.changeServerVersion) return true;
-        const _t = this._t;
+        const { t } = this.props;
+        const _t = t('Main', {returnObjects:true});
 
         if (About.appVersion() !== buildVersion && !About.compareVersions()) {
             this.changeServerVersion = true;
@@ -514,6 +543,14 @@ class MainController extends Component {
     bindEvents() {
         $$(window).on('resize', () => {
             this.api.Resize();
+        });
+
+        $$(window).on('popover:open popup:open sheet:open actions:open dialog:open', () => {
+            this.api.asc_enableKeyEvents(false);
+        });
+
+        $$(window).on('popover:close popup:close sheet:close actions:close dialog:close', () => {
+            this.api.asc_enableKeyEvents(true);
         });
 
         this.api.asc_registerCallback('asc_onDocumentUpdateVersion', this.onUpdateVersion.bind(this));
@@ -534,8 +571,35 @@ class MainController extends Component {
             storeDocumentSettings.changeDocSize(w, h);
         });
 
-        //text settings
+        this.api.asc_registerCallback('asc_onShowContentControlsActions', (obj, x, y) => {
+            const storeAppOptions = this.props.storeAppOptions;
+            if (!storeAppOptions.isEdit && !(storeAppOptions.isRestrictedEdit && storeAppOptions.canFillForms) || this.props.users.isDisconnected) return;
+
+            switch (obj.type) {
+                case Asc.c_oAscContentControlSpecificType.DateTime:
+                    this.onShowDateActions(obj, x, y);
+                    break;
+                case Asc.c_oAscContentControlSpecificType.Picture:
+                    if (obj.pr && obj.pr.get_Lock) {
+                        let lock = obj.pr.get_Lock();
+                        if (lock == Asc.c_oAscSdtLockType.SdtContentLocked || lock == Asc.c_oAscSdtLockType.ContentLocked)
+                            return;
+                    }
+                    this.api.asc_addImage(obj);
+                    setTimeout(() => {
+                        this.api.asc_UncheckContentControlButtons();
+                    }, 500);
+                    break;
+                case Asc.c_oAscContentControlSpecificType.DropDownList:
+                case Asc.c_oAscContentControlSpecificType.ComboBox:
+                    this.onShowListActions(obj, x, y);
+                    break;
+            }
+        });
+
         const storeTextSettings = this.props.storeTextSettings;
+        storeTextSettings.resetFontsRecent(LocalStorage.getItem('dde-settings-recent-fonts'));
+
         EditorUIController.initFonts && EditorUIController.initFonts(storeTextSettings);
         EditorUIController.initFocusObjects && EditorUIController.initFocusObjects(this.props.storeFocusObjects);
 
@@ -558,6 +622,7 @@ class MainController extends Component {
                 default: 
                     storeTextSettings.resetBullets(-1);
                     storeTextSettings.resetNumbers(-1);
+                    storeTextSettings.resetMultiLevel(-1);
             }
         });
         this.api.asc_registerCallback('asc_onPrAlign', (align) => {
@@ -569,9 +634,14 @@ class MainController extends Component {
         this.api.asc_registerCallback('asc_onParaSpacingLine', (vc) => {
             storeTextSettings.resetLineSpacing(vc);
         });
-        this.api.asc_registerCallback('asc_onTextShd', (shd) => {
-            let color = shd.get_Color();
-            storeTextSettings.resetBackgroundColor(color);
+
+        this.api.asc_registerCallback('asc_onTextHighLight', color => {
+            let textPr = this.api.get_TextProps().get_TextPr();
+
+            if(textPr) {
+                color = textPr.get_HighLight();
+                storeTextSettings.resetHighlightColor(color);
+            }
         });
 
         // link settings
@@ -594,7 +664,9 @@ class MainController extends Component {
         const storeDocumentInfo = this.props.storeDocumentInfo;
 
         this.api.asc_registerCallback("asc_onGetDocInfoStart", () => {
-            storeDocumentInfo.switchIsLoaded(false);
+            this.timerLoading = setTimeout(() => {
+                storeDocumentInfo.switchIsLoaded(false);
+            }, 2000);
         });
 
         this.api.asc_registerCallback("asc_onGetDocInfoStop", () => {
@@ -602,11 +674,21 @@ class MainController extends Component {
         });
 
         this.api.asc_registerCallback("asc_onDocInfo", (obj) => {
-            storeDocumentInfo.changeCount(obj);
+            clearTimeout(this.timerLoading);
+
+            this.objectInfo = obj;
+            if(!this.timerDocInfo) {
+                this.timerDocInfo = setInterval(() => {
+                    storeDocumentInfo.changeCount(this.objectInfo);
+                }, 300);
+                storeDocumentInfo.changeCount(this.objectInfo);
+            }
         });
 
         this.api.asc_registerCallback('asc_onGetDocInfoEnd', () => {
-          storeDocumentInfo.switchIsLoaded(true);
+          clearTimeout(this.timerLoading);
+          clearInterval(this.timerDocInfo);
+          storeDocumentInfo.changeCount(this.objectInfo);
         });
 
         // Color Schemes
@@ -616,11 +698,14 @@ class MainController extends Component {
         });
 
         // Downloaded Advanced Options
+        
         this.api.asc_registerCallback('asc_onAdvancedOptions', (type, advOptions, mode, formatOptions) => {
             const {t} = this.props;
             const _t = t("Settings", { returnObjects: true });
-            onAdvancedOptions(type, advOptions, mode, formatOptions, _t, this._isDocReady, this.props.storeAppOptions.canRequestClose, this.isDRM);
-            if(type == Asc.c_oAscAdvancedOptionsID.DRM) this.isDRM = true;
+            if(type == Asc.c_oAscAdvancedOptionsID.DRM) {
+                onAdvancedOptions(type, _t, this._isDocReady, this.props.storeAppOptions.canRequestClose, this.isDRM);
+                this.isDRM = true;
+            }
         });
 
         // Toolbar settings
@@ -634,13 +719,86 @@ class MainController extends Component {
             if (this.props.users.isDisconnected) return;
             storeToolbarSettings.setCanRedo(can);
         });
+
+        this.api.asc_registerCallback('asc_onReplaceAll', this.onApiTextReplaced.bind(this));
+    }
+
+    onApiTextReplaced(found, replaced) {
+        const { t } = this.props;
+
+        if (found) { 
+            f7.dialog.alert(null, !(found - replaced > 0) ? t('Main.textReplaceSuccess').replace(/\{0\}/, `${replaced}`) : t('Main.textReplaceSkipped').replace(/\{0\}/, `${found - replaced}`));
+        } else {
+            f7.dialog.alert(null, t('Main.textNoTextFound'));
+        }
+    }
+
+    onShowDateActions(obj, x, y) {
+        const { t } = this.props;
+        const boxSdk = $$('#editor_sdk');
+
+        let props = obj.pr,
+            specProps = props.get_DateTimePr(),
+            isPhone = Device.isPhone,
+            controlsContainer = boxSdk.find('#calendar-target-element'),
+            _dateObj = props;
+
+        if (controlsContainer.length < 1) {
+            controlsContainer = $$('<div id="calendar-target-element" style="position: absolute;"></div>');
+            boxSdk.append(controlsContainer);
+        }
+
+        controlsContainer.css({left: `${x}px`, top: `${y}px`});
+
+        this.cmpCalendar = f7.calendar.create({
+            inputEl: '#calendar-target-element',
+            dayNamesShort: [t('Edit.textSu'), t('Edit.textMo'), t('Edit.textTu'), t('Edit.textWe'), t('Edit.textTh'), t('Edit.textFr'), t('Edit.textSa')],
+            monthNames: [t('Edit.textJanuary'), t('Edit.textFebruary'), t('Edit.textMarch'), t('Edit.textApril'), t('Edit.textMay'), t('Edit.textJune'), t('Edit.textJuly'), t('Edit.textAugust'), t('Edit.textSeptember'), t('Edit.textOctober'), t('Edit.textNovember'), t('Edit.textDecember')],
+            backdrop: isPhone ? false : true,
+            closeByBackdropClick: isPhone ? false : true,
+            value: [new Date(specProps ? specProps.get_FullDate() : undefined)],
+            openIn: isPhone ? 'sheet' : 'popover',
+            on: {
+                change: (calendar, value) => {
+                    if(calendar.initialized && value[0]) {
+                        let specProps = _dateObj.get_DateTimePr();
+                        specProps.put_FullDate(new Date(value[0]));
+                        this.api.asc_SetContentControlDatePickerDate(specProps);
+                        calendar.close();
+                        this.api.asc_UncheckContentControlButtons();
+                    }
+                }
+            }
+        });
+
+        setTimeout(() => {
+            this.cmpCalendar.open();
+        }, 100)
+    }
+
+    onShowListActions(obj, x, y) {
+        if(!Device.isPhone) {
+            const boxSdk = $$('#editor_sdk');
+            let dropdownListTarget = boxSdk.find('#dropdown-list-target');
+        
+            if (dropdownListTarget.length < 1) {
+                dropdownListTarget = $$('<div id="dropdown-list-target" style="position: absolute;"></div>');
+                boxSdk.append(dropdownListTarget);
+            }
+        
+            dropdownListTarget.css({left: `${x}px`, top: `${y}px`});
+        }
+
+        Common.Notifications.trigger('openDropdownList', obj);
     }
 
     onProcessSaveResult (data) {
         this.api.asc_OnSaveEnd(data.result);
 
         if (data && data.result === false) {
-            const _t = this._t;
+            const { t } = this.props;
+            const _t = t('Main', {returnObjects:true});
+
             f7.dialog.alert(
                 (!data.message) ? _t.errorProcessSaveResult : data.message,
                 _t.criticalErrorTitle
@@ -657,7 +815,9 @@ class MainController extends Component {
             Common.Notifications.trigger('api:disconnect');
 
             if (!old_rights) {
-                const _t = this._t;
+                const { t } = this.props;
+                const _t = t('Main', {returnObjects:true});
+
                 f7.dialog.alert(
                     (!data.message) ? _t.warnProcessRightsChange : data.message,
                     _t.notcriticalErrorTitle,
@@ -670,7 +830,9 @@ class MainController extends Component {
     onDownloadAs () {
         const appOptions = this.props.storeAppOptions;
         if ( !appOptions.canDownload && !appOptions.canDownloadOrigin) {
-            Common.Gateway.reportError(Asc.c_oAscError.ID.AccessDeny, this._t.errorAccessDeny);
+            const { t } = this.props;
+            const _t = t('Main', {returnObjects:true});
+            Common.Gateway.reportError(Asc.c_oAscError.ID.AccessDeny, _t.errorAccessDeny);
             return;
         }
 
@@ -684,9 +846,9 @@ class MainController extends Component {
         }
     }
 
-    onDownloadUrl () {
+    onDownloadUrl (url, fileType) {
         if (this._state.isFromGatewayDownloadAs) {
-            Common.Gateway.downloadAs(url);
+            Common.Gateway.downloadAs(url, fileType);
         }
 
         this._state.isFromGatewayDownloadAs = false;
@@ -697,7 +859,8 @@ class MainController extends Component {
     }
 
     onUpdateVersion (callback) {
-        const _t = this._t;
+        const { t } = this.props;
+        const _t = t('Main', {returnObjects:true});
 
         this.needToUpdateVersion = true;
         Common.Notifications.trigger('preloader:endAction', Asc.c_oAscAsyncActionType['BlockInteraction'], this.LoadingDocument);
@@ -789,7 +952,8 @@ class MainController extends Component {
             if (value === 1) {
                 this.api.asc_runAutostartMacroses();
             } else if (value === 0) {
-                const _t = this._t;
+                const { t } = this.props;
+                const _t = t('Main', {returnObjects:true});
                 f7.dialog.create({
                     title: _t.notcriticalErrorTitle,
                     text: _t.textHasMacros,
@@ -838,11 +1002,14 @@ class MainController extends Component {
                 {EditorUIController.getEditCommentControllers && EditorUIController.getEditCommentControllers()}
                 <ViewCommentsController />
                 <PluginsController />
+                <EncodingController />
+                <DropdownListController />
             </Fragment>
             )
     }
 
     componentDidMount() {
+        Common.EditorApi = {get: () => this.api};
         this.initSdk();
     }
 }

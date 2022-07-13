@@ -95,6 +95,7 @@ define([    'text!documenteditor/main/app/template/ParagraphSettingsAdvanced.tem
             this.api = this.options.api;
             this._originalProps = new Asc.asc_CParagraphProperty(this.options.paragraphProps);
             this.isChart = this.options.isChart;
+            this.isSmartArtInternal = this.options.isSmartArtInternal;
 
             this.CurLineRuleIdx = this._originalProps.get_Spacing().get_LineRule();
 
@@ -366,7 +367,8 @@ define([    'text!documenteditor/main/app/template/ParagraphSettingsAdvanced.tem
 
             this.cmbBorderSize = new Common.UI.ComboBorderSize({
                 el: $('#paragraphadv-combo-border-size'),
-                style: "width: 93px;"
+                style: "width: 93px;",
+                takeFocusOnClose: true
             });
             var rec = this.cmbBorderSize.store.at(2);
             this.BorderSize = {ptValue: rec.get('value'), pxValue: rec.get('pxValue')};
@@ -377,7 +379,9 @@ define([    'text!documenteditor/main/app/template/ParagraphSettingsAdvanced.tem
                 parentEl: $('#paragraphadv-border-color-btn'),
                 additionalAlign: this.menuAddAlign,
                 color: 'auto',
-                auto: true
+                auto: true,
+                cls: 'move-focus',
+                takeFocusOnClose: true
             });
             this.colorsBorder = this.btnBorderColor.getPicker();
             this.btnBorderColor.on('color:select', _.bind(this.onColorsBorderSelect, this));
@@ -407,8 +411,8 @@ define([    'text!documenteditor/main/app/template/ParagraphSettingsAdvanced.tem
             _.each(_arrBorderPresets, function(item, index, list){
                 var _btn = new Common.UI.Button({
                     parentEl: $('#'+item[2]),
-                    style: 'margin-left: 5px; margin-bottom: 4px;',
-                    cls: 'btn-options large',
+                    style: 'margin-left: 4px; margin-bottom: 4px;',
+                    cls: 'btn-options large border-off',
                     iconCls: item[1],
                     strId   :item[0],
                     hint: item[3]
@@ -420,7 +424,9 @@ define([    'text!documenteditor/main/app/template/ParagraphSettingsAdvanced.tem
             this.btnBackColor = new Common.UI.ColorButton({
                 parentEl: $('#paragraphadv-back-color-btn'),
                 transparent: true,
-                additionalAlign: this.menuAddAlign
+                additionalAlign: this.menuAddAlign,
+                cls: 'move-focus',
+                takeFocusOnClose: true
             });
             this.colorsBack = this.btnBackColor.getPicker();
             this.btnBackColor.on('color:select', _.bind(this.onColorsBackSelect, this));
@@ -544,7 +550,7 @@ define([    'text!documenteditor/main/app/template/ParagraphSettingsAdvanced.tem
                     '<div id="<%= id %>" class="list-item" style="width: 100%;display:inline-block;">',
                     '<div style="width:117px;display: inline-block;"><%= value %></div>',
                     '<div style="width:121px;display: inline-block;"><%= displayTabAlign %></div>',
-                    '<div style="width:96px;display: inline-block;"><%= displayTabLeader %></div>',
+                    (this.isChart || this.isSmartArtInternal) ? '' : '<div style="width:96px;display: inline-block;"><%= displayTabLeader %></div>',
                     '</div>'
                 ].join('')),
                 tabindex: 1
@@ -682,10 +688,11 @@ define([    'text!documenteditor/main/app/template/ParagraphSettingsAdvanced.tem
                 this.cmbTextAlignment, this.cmbOutlinelevel, this.numIndentsLeft, this.numIndentsRight, this.cmbSpecial, this.numSpecialBy,
                 this.numSpacingBefore, this.numSpacingAfter, this.cmbLineRule, this.numLineHeight, this.chAddInterval, // 0 tab
                 this.chBreakBefore, this.chKeepLines, this.chOrphan, this.chKeepNext, this.chLineNumbers, // 1 tab
+                this.cmbBorderSize, this.btnBorderColor].concat(this._btnsBorderPosition).concat([this.btnBackColor,  // 2 tab
                 this.chStrike, this.chSubscript, this.chDoubleStrike, this.chSmallCaps, this.chSuperscript, this.chAllCaps, this.numSpacing, this.numPosition, // 3 tab
                 this.numDefaultTab, this.numTab, this.cmbAlign, this.cmbLeader, this.tabList, this.btnAddTab, this.btnRemoveTab, this.btnRemoveAll,// 4 tab
                 this.spnMarginTop, this.spnMarginLeft, this.spnMarginBottom, this.spnMarginRight // 5 tab
-            ];
+            ]);
         },
 
         onCategoryClick: function(btn, index, cmp, e) {
@@ -699,6 +706,9 @@ define([    'text!documenteditor/main/app/template/ParagraphSettingsAdvanced.tem
                         break;
                     case 1:
                         me.chBreakBefore.focus();
+                        break;
+                    case 2:
+                        me.cmbBorderSize.focus();
                         break;
                     case 3:
                         me.chStrike.focus();
@@ -800,7 +810,7 @@ define([    'text!documenteditor/main/app/template/ParagraphSettingsAdvanced.tem
             if (props ){
                 this._originalProps = new Asc.asc_CParagraphProperty(props);
 
-                this.hideTextOnlySettings(this.isChart);
+                this.hideTextOnlySettings(this.isChart || this.isSmartArtInternal);
 
                 this.FirstLine = (props.get_Ind() !== null) ? props.get_Ind().get_FirstLine() : null;
                 this.LeftIndent = (props.get_Ind() !== null) ? props.get_Ind().get_Left() : null;

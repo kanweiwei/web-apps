@@ -138,7 +138,7 @@
 define([
     'common/main/lib/component/BaseView',
     'common/main/lib/component/CheckBox',
-    'common/main/lib/component/FocusManager'
+    'common/main/lib/controller/FocusManager'
 ], function () {
     'use strict';
 
@@ -455,7 +455,7 @@ define([
             if (!options.width) options.width = 'auto';
             
             var template =  '<div class="info-box">' +
-                                '<% if (typeof iconCls !== "undefined") { %><div class="icon img-commonctrl img-colored <%= iconCls %>"></div><% } %>' +
+                                '<% if (typeof iconCls !== "undefined") { %><div class="icon <%= iconCls %>"></div><% } %>' +
                                 '<div class="text" <% if (typeof iconCls == "undefined") { %> style="padding-left:10px;" <% } %>><span><%= msg %></span>' +
                                     '<% if (dontshow) { %><div class="dont-show-checkbox"></div><% } %>' +
                                 '</div>' +

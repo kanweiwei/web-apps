@@ -12,6 +12,14 @@ const EditShape = props => {
     const shapeObject = storeFocusObjects.shapeObject;
     const canFill = shapeObject && shapeObject.get_CanFill();
 
+    const shapeType = shapeObject.asc_getType();
+    const hideChangeType = shapeObject.get_FromChart() || shapeObject.get_FromSmartArt() 
+    || shapeType=='line' || shapeType=='bentConnector2' || shapeType=='bentConnector3'
+    || shapeType=='bentConnector4' || shapeType=='bentConnector5' || shapeType=='curvedConnector2'
+    || shapeType=='curvedConnector3' || shapeType=='curvedConnector4' || shapeType=='curvedConnector5'
+    || shapeType=='straightConnector1';
+
+    const isSmartArtInternal = shapeObject.get_FromSmartArtInternal();
     let disableRemove = !!props.storeFocusObjects.paragraphObject;
 
     return (
@@ -30,12 +38,16 @@ const EditShape = props => {
                         onBorderColor: props.onBorderColor
                     }}></ListItem>
                 }
-                <ListItem title={_t.textReplace} link="/edit-replace-shape/" routeProps={{
-                    onReplace: props.onReplace
-                }}></ListItem>
-                <ListItem title={_t.textReorder} link="/edit-reorder-shape/" routeProps={{
-                    onReorder: props.onReorder
-                }}></ListItem>
+                { !hideChangeType &&
+                    <ListItem title={_t.textReplace} link="/edit-replace-shape/" routeProps={{
+                        onReplace: props.onReplace
+                    }}></ListItem>
+                }
+                { !isSmartArtInternal &&
+                    <ListItem title={_t.textReorder} link="/edit-reorder-shape/" routeProps={{
+                        onReorder: props.onReorder
+                    }}></ListItem>
+                }
                 <ListItem title={_t.textAlign} link="/edit-align-shape/" routeProps={{
                     onAlign: props.onAlign
                 }}></ListItem>

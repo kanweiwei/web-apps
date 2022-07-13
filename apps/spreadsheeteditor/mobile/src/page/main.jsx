@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { Component, Fragment } from 'react';
 import { Page, View, Navbar, Subnavbar, Icon } from 'framework7-react';
 import { observer, inject } from "mobx-react";
 import { Device } from '../../../../common/mobile/utils/device';
@@ -11,7 +11,7 @@ import FilterOptionsController from '../controller/FilterOptions.jsx'
 import AddOptions from "../view/add/Add";
 import EditOptions from "../view/edit/Edit";
 import { Search, SearchSettings } from '../controller/Search';
-import { f7 } from 'framework7-react';
+import { f7, Link } from 'framework7-react';
 
 import {FunctionGroups} from "../controller/add/AddFunction";
 import ContextMenu from '../controller/ContextMenu';
@@ -25,7 +25,7 @@ class MainPage extends Component {
             addOptionsVisible: false,
             addShowOptions: null,
             settingsVisible: false,
-            collaborationVisible: false,
+            collaborationVisible: false
         };
     }
 
@@ -88,21 +88,35 @@ class MainPage extends Component {
 
   render() {
       const appOptions = this.props.storeAppOptions;
+      const storeWorksheets = this.props.storeWorksheets;
+      const wsProps = storeWorksheets.wsProps;
+      const wsLock = storeWorksheets.wsLock;
       const config = appOptions.config;
-      const showLogo = !(appOptions.canBrandingExt && (config.customization && (config.customization.loaderName || config.customization.loaderLogo)));
+
+      let showLogo = !(appOptions.canBrandingExt && (config.customization && (config.customization.loaderName || config.customization.loaderLogo)));
+      if ( !Object.keys(config).length ) {
+          showLogo = !/&(?:logo)=/.test(window.location.search);
+      }
+
       const showPlaceholder = !appOptions.isDocReady && (!config.customization || !(config.customization.loaderName || config.customization.loaderLogo));
+      if ( $$('.skl-container').length ) {
+          $$('.skl-container').remove();
+      }
+
       return (
             <Page name="home" className={`editor${ showLogo ? ' page-with-logo' : ''}`}>
               {/* Top Navbar */}
                 <Navbar id='editor-navbar' className={`main-navbar${showLogo ? ' navbar-with-logo' : ''}`}>
-                    {showLogo && <div className="main-logo"><Icon icon="icon-logo"></Icon></div>}
+                    {showLogo && appOptions.canBranding !== undefined && <div className="main-logo" onClick={
+                    () => {
+                        window.open(`${__PUBLISHER_URL__}`, "_blank");
+                    }}><Icon icon="icon-logo"></Icon></div>}
                     <Subnavbar>
                         <Toolbar openOptions={this.handleClickToOpenOptions} closeOptions={this.handleOptionsViewClosed}/>
                         <Search useSuspense={false}/>
                     </Subnavbar>
                 </Navbar>
                 <CellEditor onClickToOpenAddOptions={(panels, button) => this.handleClickToOpenOptions('add', {panels: panels, button: button})}/>
-                <FilterOptionsController/>
                 {/* Page content */}
                 <View id="editor_sdk" />
                 {showPlaceholder ?
@@ -115,11 +129,11 @@ class MainPage extends Component {
                 <SearchSettings useSuspense={false} />
                 {
                     !this.state.editOptionsVisible ? null :
-                        <EditOptions onclosed={this.handleOptionsViewClosed.bind(this, 'edit')} />
+                        <EditOptions onclosed={this.handleOptionsViewClosed.bind(this, 'edit')} wsLock={wsLock} wsProps={wsProps} />
                 }
                 {
                     !this.state.addOptionsVisible ? null :
-                        <AddOptions onclosed={this.handleOptionsViewClosed.bind(this, 'add')} showOptions={this.state.addShowOptions} />
+                        <AddOptions onclosed={this.handleOptionsViewClosed.bind(this, 'add')} wsLock={wsLock} wsProps={wsProps} showOptions={this.state.addShowOptions} />
                 }
                 {
                     !this.state.settingsVisible ? null :
@@ -130,15 +144,19 @@ class MainPage extends Component {
                         <CollaborationView onclosed={this.handleOptionsViewClosed.bind(this, 'coauth')} />
                 }
 
-                <FilterOptionsController />
+                {appOptions.isDocReady &&
+                    <Fragment key='filter-context'>
+                        <FilterOptionsController wsProps={wsProps} />
+                        <ContextMenu openOptions={this.handleClickToOpenOptions.bind(this)} />
+                    </Fragment>
+                }
                 
-                <Statusbar />
+                <Statusbar key='statusbar'/>
 
                 <FunctionGroups /> {/* hidden component*/}
-                <ContextMenu openOptions={this.handleClickToOpenOptions.bind(this)} />
             </Page>
       )
   }
 }
 
-export default inject("storeAppOptions")(observer(MainPage));
+export default inject("storeAppOptions", "storeWorksheets")(observer(MainPage));

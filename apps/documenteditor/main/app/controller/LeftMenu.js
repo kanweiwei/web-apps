@@ -45,14 +45,16 @@ define([
     'common/main/lib/util/Shortcuts',
     'common/main/lib/view/SaveAsDlg',
     'documenteditor/main/app/view/LeftMenu',
-    'documenteditor/main/app/view/FileMenu'
+    'documenteditor/main/app/view/FileMenu',
+    'documenteditor/main/app/view/ViewTab',
 ], function () {
     'use strict';
 
     DE.Controllers.LeftMenu = Backbone.Controller.extend(_.extend({
         views: [
             'LeftMenu',
-            'FileMenu'
+            'FileMenu',
+            'ViewTab'
         ],
 
         initialize: function() {
@@ -85,7 +87,6 @@ define([
                     'menu:show': _.bind(this.menuFilesShowHide, this, 'show'),
                     'item:click': _.bind(this.clickMenuFileItem, this),
                     'saveas:format': _.bind(this.clickSaveAsFormat, this),
-                    'savecopy:format': _.bind(this.clickSaveCopyAsFormat, this),
                     'settings:apply': _.bind(this.applySettings, this),
                     'create:new': _.bind(this.onCreateNew, this),
                     'recent:open': _.bind(this.onOpenRecent, this)
@@ -106,6 +107,9 @@ define([
                 },
                 'Common.Views.ReviewChanges': {
                     'collaboration:chat': _.bind(this.onShowHideChat, this)
+                },
+                'ViewTab': {
+                    'viewtab:navigation': _.bind(this.onShowHideNavigation, this)
                 }
             });
 
@@ -167,6 +171,7 @@ define([
             this.leftMenu.getMenu('file').setApi(api);
             if (this.mode.canUseHistory)
                 this.getApplication().getController('Common.Controllers.History').setApi(this.api).setMode(this.mode);
+            this.getApplication().getController('PageThumbnails').setApi(this.api).setMode(this.mode);
             return this;
         },
 
@@ -207,6 +212,13 @@ define([
 
             this.leftMenu.setOptionsPanel('navigation', this.getApplication().getController('Navigation').getView('Navigation'));
 
+            if (this.mode.canUseThumbnails) {
+                this.leftMenu.btnThumbnails.show();
+                this.leftMenu.setOptionsPanel('thumbnails', this.getApplication().getController('PageThumbnails').getView('PageThumbnails'));
+            } else {
+                this.leftMenu.btnThumbnails.hide();
+            }
+
             (this.mode.trialMode || this.mode.isBeta) && this.leftMenu.setDeveloperMode(this.mode.trialMode, this.mode.isBeta, this.mode.buildVersion);
 
             Common.util.Shortcuts.resumeEvents();
@@ -231,13 +243,13 @@ define([
             case 'save-desktop': this.api.asc_DownloadAs(); break;
             case 'saveas':
                 if ( isopts ) close_menu = false;
-                else this.clickSaveAsFormat(undefined);
+                else this.clickSaveAsFormat();
                 break;
             case 'save-copy':
                 if ( isopts ) close_menu = false;
-                else this.clickSaveCopyAsFormat(undefined);
+                else this.clickSaveAsFormat(undefined, undefined, true);
                 break;
-            case 'print': this.api.asc_Print(new Asc.asc_CDownloadOptions(null, Common.Utils.isChrome || Common.Utils.isSafari || Common.Utils.isOpera || Common.Utils.isGecko && Common.Utils.firefoxVersion>86)); break;
+            case 'print': this.api.asc_Print(new Asc.asc_CDownloadOptions(null, Common.Utils.isChrome || Common.Utils.isOpera || Common.Utils.isGecko && Common.Utils.firefoxVersion>86)); break;
             case 'exit': Common.NotificationCenter.trigger('goback'); break;
             case 'edit':
                 this.getApplication().getController('Statusbar').setStatusCaption(this.requestEditRightsText);
@@ -294,60 +306,14 @@ define([
             }
         },
 
-        clickSaveAsFormat: function(menu, format) {
-            if (menu) {
-                if (format == Asc.c_oAscFileType.TXT || format == Asc.c_oAscFileType.RTF) {
-                    Common.UI.warning({
-                        closable: false,
-                        title: this.notcriticalErrorTitle,
-                        msg: (format == Asc.c_oAscFileType.TXT) ? this.warnDownloadAs : this.warnDownloadAsRTF,
-                        buttons: ['ok', 'cancel'],
-                        callback: _.bind(function(btn){
-                            if (btn == 'ok') {
-                                if (format == Asc.c_oAscFileType.TXT)
-                                    Common.NotificationCenter.trigger('download:advanced', Asc.c_oAscAdvancedOptionsID.TXT, this.api.asc_getAdvancedOptions(), 2, new Asc.asc_CDownloadOptions(format));
-                                else
-                                    this.api.asc_DownloadAs(new Asc.asc_CDownloadOptions(format));
-                                menu.hide();
-                            }
-                        }, this)
-                    });
-                } else if (format == Asc.c_oAscFileType.DOCX) {
-                    if (!Common.Utils.InternalSettings.get("de-settings-compatible") && !Common.localStorage.getBool("de-hide-save-compatible") && this.api.asc_isCompatibilityMode()) {
-                        Common.UI.warning({
-                            closable: false,
-                            width: 600,
-                            title: this.notcriticalErrorTitle,
-                            msg: this.txtCompatible,
-                            buttons: ['ok', 'cancel'],
-                            dontshow: true,
-                            callback: _.bind(function(btn, dontshow){
-                                if (dontshow) Common.localStorage.setItem("de-hide-save-compatible", 1);
-                                if (btn == 'ok') {
-                                    this.api.asc_DownloadAs(new Asc.asc_CDownloadOptions(format));
-                                    menu.hide();
-                                }
-                            }, this)
-                        });
-                    } else {
-                        var opts = new Asc.asc_CDownloadOptions(Asc.c_oAscFileType.DOCX);
-                        opts.asc_setCompatible(!!Common.Utils.InternalSettings.get("de-settings-compatible"));
-                        this.api.asc_DownloadAs(opts);
-                        menu.hide();
-                    }
-                } else {
-                    this.api.asc_DownloadAs(new Asc.asc_CDownloadOptions(format));
-                    menu.hide();
-                }
-            } else
-                this.api.asc_DownloadOrigin();
-        },
+        _saveAsFormat: function(menu, format, ext, textParams) {
+            var needDownload = !!ext;
 
-        clickSaveCopyAsFormat: function(menu, format, ext) {
             if (menu) {
+                var options = new Asc.asc_CDownloadOptions(format, needDownload);
+                options.asc_setTextParams(textParams);
                 if (format == Asc.c_oAscFileType.TXT || format == Asc.c_oAscFileType.RTF) {
                     Common.UI.warning({
-                        closable: false,
                         title: this.notcriticalErrorTitle,
                         msg: (format == Asc.c_oAscFileType.TXT) ? this.warnDownloadAs : this.warnDownloadAsRTF,
                         buttons: ['ok', 'cancel'],
@@ -355,9 +321,9 @@ define([
                             if (btn == 'ok') {
                                 this.isFromFileDownloadAs = ext;
                                 if (format == Asc.c_oAscFileType.TXT)
-                                    Common.NotificationCenter.trigger('download:advanced', Asc.c_oAscAdvancedOptionsID.TXT, this.api.asc_getAdvancedOptions(), 2, new Asc.asc_CDownloadOptions(format, true));
+                                    Common.NotificationCenter.trigger('download:advanced', Asc.c_oAscAdvancedOptionsID.TXT, this.api.asc_getAdvancedOptions(), 2, options);
                                 else
-                                    this.api.asc_DownloadAs(new Asc.asc_CDownloadOptions(format, true));
+                                    this.api.asc_DownloadAs(options);
                                 menu.hide();
                             }
                         }, this)
@@ -375,30 +341,59 @@ define([
                                 if (dontshow) Common.localStorage.setItem("de-hide-save-compatible", 1);
                                 if (btn == 'ok') {
                                     this.isFromFileDownloadAs = ext;
-                                    this.api.asc_DownloadAs(new Asc.asc_CDownloadOptions(format, true));
+                                    this.api.asc_DownloadAs(options);
                                     menu.hide();
                                 }
                             }, this)
                         });
                     } else {
                         this.isFromFileDownloadAs = ext;
-                        var opts = new Asc.asc_CDownloadOptions(Asc.c_oAscFileType.DOCX, true);
-                        opts.asc_setCompatible(!!Common.Utils.InternalSettings.get("de-settings-compatible"));
-                        this.api.asc_DownloadAs(opts);
+                        options.asc_setCompatible(!!Common.Utils.InternalSettings.get("de-settings-compatible"));
+                        this.api.asc_DownloadAs(options);
                         menu.hide();
                     }
                 } else {
                     this.isFromFileDownloadAs = ext;
-                    this.api.asc_DownloadAs(new Asc.asc_CDownloadOptions(format, true));
+                    this.api.asc_DownloadAs(options);
                     menu.hide();
                 }
             } else {
-                this.isFromFileDownloadAs = true;
-                this.api.asc_DownloadOrigin(true);
+                this.isFromFileDownloadAs = needDownload;
+                this.api.asc_DownloadOrigin(needDownload);
             }
         },
 
-        onDownloadUrl: function(url) {
+        clickSaveAsFormat: function(menu, format, ext) { // ext isn't undefined for save copy as
+            var me = this,
+                fileType = this.getApplication().getController('Main').document.fileType;
+            if ( /^pdf|xps|oxps|djvu$/.test(fileType)) {
+                if (format===undefined) {
+                    this._saveAsFormat(undefined, format, ext); // download original
+                    menu && menu.hide();
+                } else if (format == Asc.c_oAscFileType.PDF || format == Asc.c_oAscFileType.PDFA)
+                    this._saveAsFormat(menu, format, ext);
+                else {
+                    if (format == Asc.c_oAscFileType.TXT || format == Asc.c_oAscFileType.RTF) // don't show message about pdf/xps/oxps
+                        me._saveAsFormat(menu, format, ext, new AscCommon.asc_CTextParams(Asc.c_oAscTextAssociation.PlainLine));
+                    else {
+                        Common.UI.warning({
+                            width: 600,
+                            title: this.notcriticalErrorTitle,
+                            msg: Common.Utils.String.format(this.warnDownloadAsPdf, fileType.toUpperCase()),
+                            buttons: ['ok', 'cancel'],
+                            callback: _.bind(function(btn){
+                                if (btn == 'ok') {
+                                    me._saveAsFormat(menu, format, ext, new AscCommon.asc_CTextParams(Asc.c_oAscTextAssociation.PlainLine));
+                                }
+                            }, this)
+                        });
+                    }
+                }
+            } else
+                this._saveAsFormat(menu, format, ext);
+        },
+
+        onDownloadUrl: function(url, fileType) {
             if (this.isFromFileDownloadAs) {
                 var me = this,
                     defFileName = this.getApplication().getController('Viewport').getView('Common.Views.Header').getDocumentCaption();
@@ -411,7 +406,7 @@ define([
                 }
 
                 if (me.mode.canRequestSaveAs) {
-                    Common.Gateway.requestSaveAs(url, defFileName);
+                    Common.Gateway.requestSaveAs(url, defFileName, fileType);
                 } else {
                     me._saveCopyDlg = new Common.Views.SaveAsDlg({
                         saveFolderUrl: me.mode.saveAsUrl,
@@ -495,9 +490,11 @@ define([
                     this.api.asc_setAutoSaveGap(value);
                 }
 
-                value = Common.localStorage.getBool("de-settings-spellcheck", true);
-                Common.Utils.InternalSettings.set("de-settings-spellcheck", value);
-                this.api.asc_setSpellCheck(value);
+                if (Common.UI.FeaturesManager.canChange('spellcheck')) {
+                    value = Common.localStorage.getBool("de-settings-spellcheck", true);
+                    Common.Utils.InternalSettings.set("de-settings-spellcheck", value);
+                    this.api.asc_setSpellCheck(value);
+                }
 
                 value = parseInt(Common.localStorage.getItem("de-settings-paste-button"));
                 Common.Utils.InternalSettings.set("de-settings-paste-button", value);
@@ -511,7 +508,7 @@ define([
 
         onCreateNew: function(menu, type) {
             if ( !Common.Controllers.Desktop.process('create:new') ) {
-                if (this.mode.canRequestCreateNew)
+                if (type == 'blank' && this.mode.canRequestCreateNew)
                     Common.Gateway.requestCreateNew();
                 else {
                     var newDocumentPage = window.open(type == 'blank' ? this.mode.createUrl : type, "_blank");
@@ -564,22 +561,35 @@ define([
 
         onQuerySearch: function(d, w, opts) {
             if (opts.textsearch && opts.textsearch.length) {
-                if (!this.api.asc_findText(opts.textsearch, d != 'back', opts.matchcase, opts.matchword)) {
-                    var me = this;
-                    Common.UI.info({
-                        msg: this.textNoTextFound,
+                var me = this;
+                this.api.asc_findText(opts.textsearch, d != 'back', opts.matchcase, function(resultCount) {
+                    !resultCount && Common.UI.info({
+                        msg: me.textNoTextFound,
                         callback: function() {
                             me.dlgSearch.focus();
                         }
                     });
-                }
+                });
             }
         },
 
         onQueryReplace: function(w, opts) {
             if (!_.isEmpty(opts.textsearch)) {
+                var me = this;
+                var str = this.api.asc_GetErrorForReplaceString(opts.textreplace);
+                if (str) {
+                    Common.UI.warning({
+                        title: this.notcriticalErrorTitle,
+                        msg: Common.Utils.String.format(this.warnReplaceString, str),
+                        buttons: ['ok'],
+                        callback: function(btn){
+                            me.dlgSearch.focus('replace');
+                        }
+                    });
+                    return;
+                }
+
                 if (!this.api.asc_replaceText(opts.textsearch, opts.textreplace, false, opts.matchcase, opts.matchword)) {
-                    var me = this;
                     Common.UI.info({
                         msg: this.textNoTextFound,
                         callback: function() {
@@ -592,6 +602,19 @@ define([
 
         onQueryReplaceAll: function(w, opts) {
             if (!_.isEmpty(opts.textsearch)) {
+                var me = this;
+                var str = this.api.asc_GetErrorForReplaceString(opts.textreplace);
+                if (str) {
+                    Common.UI.warning({
+                        title: this.notcriticalErrorTitle,
+                        msg: Common.Utils.String.format(this.warnReplaceString, str),
+                        buttons: ['ok'],
+                        callback: function(btn){
+                            me.dlgSearch.focus('replace');
+                        }
+                    });
+                    return;
+                }
                 this.api.asc_replaceText(opts.textsearch, opts.textreplace, true, opts.matchcase, opts.matchword);
             }
         },
@@ -667,21 +690,29 @@ define([
             this.dlgSearch && this.dlgSearch.setMode(this.viewmode ? 'no-replace' : 'search');
         },
 
-        SetDisabled: function(disable, disableFileMenu) {
-            this.mode.isEdit = !disable;
+        SetDisabled: function(disable, options) {
+            if (this.leftMenu._state.disabled !== disable) {
+                this.leftMenu._state.disabled = disable;
+                if (disable) {
+                    this.previsEdit = this.mode.isEdit;
+                    this.prevcanEdit = this.mode.canEdit;
+                    this.mode.isEdit = this.mode.canEdit = !disable;
+                } else {
+                    this.mode.isEdit = this.previsEdit;
+                    this.mode.canEdit = this.prevcanEdit;
+                }
+            }
+
             if (disable) this.leftMenu.close();
 
-            /** coauthoring begin **/
-            this.leftMenu.btnComments.setDisabled(disable);
-            var comments = this.getApplication().getController('Common.Controllers.Comments');
-            if (comments)
-                comments.setPreviewMode(disable);
-            this.setPreviewMode(disable);
-            this.leftMenu.btnChat.setDisabled(disable);
-            /** coauthoring end **/
+            if (!options || options.comments && options.comments.disable)
+                this.leftMenu.btnComments.setDisabled(disable);
+            if (!options || options.chat)
+                this.leftMenu.btnChat.setDisabled(disable);
+            if (!options || options.navigation && options.navigation.disable)
+                this.leftMenu.btnNavigation.setDisabled(disable);
+
             this.leftMenu.btnPlugins.setDisabled(disable);
-            this.leftMenu.btnNavigation.setDisabled(disable);
-            if (disableFileMenu) this.leftMenu.getMenu('file').SetDisabled(disable);
         },
 
         /** coauthoring begin **/
@@ -762,12 +793,18 @@ define([
 
         onMenuChange: function (value) {
             if ('hide' === value) {
-                if (this.leftMenu.btnComments.isActive() && this.api) {
-                    this.leftMenu.btnComments.toggle(false);
-                    this.leftMenu.onBtnMenuClick(this.leftMenu.btnComments);
+                if (this.api) {
+                    if (this.leftMenu.btnComments.isActive()) {
+                        this.leftMenu.btnComments.toggle(false);
+                        this.leftMenu.onBtnMenuClick(this.leftMenu.btnComments);
 
-                    // focus to sdk
-                    this.api.asc_enableKeyEvents(true);
+                        // focus to sdk
+                        this.api.asc_enableKeyEvents(true);
+                    } else if (this.leftMenu.btnThumbnails.isActive()) {
+                        this.leftMenu.btnThumbnails.toggle(false);
+                        this.leftMenu.panelThumbnails.hide();
+                        this.leftMenu.onBtnMenuClick(this.leftMenu.btnThumbnails);
+                    }
                 }
             }
         },
@@ -809,7 +846,8 @@ define([
                 case 'escape':
 //                        if (!this.leftMenu.isOpened()) return true;
                     if ( this.leftMenu.menuFile.isVisible() ) {
-                        this.leftMenu.menuFile.hide();
+                        if (Common.UI.HintManager.needCloseFileMenu())
+                            this.leftMenu.menuFile.hide();
                         return false;
                     }
 
@@ -828,8 +866,10 @@ define([
                     }
                     if (this.leftMenu.btnAbout.pressed || this.leftMenu.btnPlugins.pressed ||
                                 $(e.target).parents('#left-menu').length ) {
-                        this.leftMenu.close();
-                        Common.NotificationCenter.trigger('layout:changed', 'leftmenu');
+                        if (!Common.UI.HintManager.isHintVisible()) {
+                            this.leftMenu.close();
+                            Common.NotificationCenter.trigger('layout:changed', 'leftmenu');
+                        }
                         return false;
                     }
                     break;
@@ -888,6 +928,20 @@ define([
             }
         },
 
+        onShowHideNavigation: function(state) {
+            if (state) {
+                Common.UI.Menu.Manager.hideAll();
+                this.leftMenu.showMenu('navigation');
+            } else {
+                this.leftMenu.btnNavigation.toggle(false, true);
+                this.leftMenu.onBtnMenuClick(this.leftMenu.btnNavigation);
+            }
+        },
+
+        isCommentsVisible: function() {
+            return this.leftMenu && this.leftMenu.panelComments && this.leftMenu.panelComments.isVisible();
+        },
+
         textNoTextFound         : 'Text not found',
         newDocumentTitle        : 'Unnamed document',
         requestEditRightsText   : 'Requesting editing rights...',
@@ -899,7 +953,9 @@ define([
         warnDownloadAs          : 'If you continue saving in this format all features except the text will be lost.<br>Are you sure you want to continue?',
         warnDownloadAsRTF       : 'If you continue saving in this format some of the formatting might be lost.<br>Are you sure you want to continue?',
         txtUntitled: 'Untitled',
-        txtCompatible: 'The document will be saved to the new format. It will allow to use all the editor features, but might affect the document layout.<br>Use the \'Compatibility\' option of the advanced settings if you want to make the files compatible with older MS Word versions.'
+        txtCompatible: 'The document will be saved to the new format. It will allow to use all the editor features, but might affect the document layout.<br>Use the \'Compatibility\' option of the advanced settings if you want to make the files compatible with older MS Word versions.',
+        warnDownloadAsPdf: 'Your {0} will be converted to an editable format. This may take a while. The resulting document will be optimized to allow you to edit the text, so it might not look exactly like the original {0}, especially if the original file contained lots of graphics.',
+        warnReplaceString: '{0} is not a valid special character for the Replace With box.'
 
     }, DE.Controllers.LeftMenu || {}));
 });

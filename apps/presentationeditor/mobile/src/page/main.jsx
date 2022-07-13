@@ -1,5 +1,5 @@
 import React, { Component, Fragment } from 'react';
-import { f7, Page, View, Navbar, Subnavbar, Icon } from 'framework7-react';
+import { f7, Page, View, Navbar, Subnavbar, Icon, Link} from 'framework7-react';
 import { observer, inject } from "mobx-react";
 import { Device } from '../../../../common/mobile/utils/device';
 
@@ -89,10 +89,20 @@ class MainPage extends Component {
         });
     };
 
+    componentDidMount () {
+        if ( $$('.skl-container').length )
+            $$('.skl-container').remove();
+    }
+
     render() {
         const appOptions = this.props.storeAppOptions;
         const config = appOptions.config;
-        const showLogo = !(appOptions.canBrandingExt && (config.customization && (config.customization.loaderName || config.customization.loaderLogo)));
+
+        let showLogo = !(appOptions.canBrandingExt && (config.customization && (config.customization.loaderName || config.customization.loaderLogo)));
+        if ( !Object.keys(config).length ) {
+            showLogo = !/&(?:logo)=/.test(window.location.search);
+        }
+
         const showPlaceholder = !appOptions.isDocReady && (!config.customization || !(config.customization.loaderName || config.customization.loaderLogo));
         return (
             <Fragment>
@@ -100,7 +110,9 @@ class MainPage extends Component {
                 <Page name="home" className={`editor${ showLogo ? ' page-with-logo' : ''}`}>
                     {/* Top Navbar */}
                     <Navbar id='editor-navbar' className={`main-navbar${showLogo ? ' navbar-with-logo' : ''}`}>
-                        {showLogo && <div className="main-logo"><Icon icon="icon-logo"></Icon></div>}
+                        {showLogo && appOptions.canBranding !== undefined && <div className="main-logo" onClick={() => {
+                            window.open(`${__PUBLISHER_URL__}`, "_blank");
+                        }}><Icon icon="icon-logo"></Icon></div>}
                         <Subnavbar>
                             <Toolbar openOptions={this.handleClickToOpenOptions} closeOptions={this.handleOptionsViewClosed}/>
                             <Search useSuspense={false}/>
@@ -142,7 +154,8 @@ class MainPage extends Component {
                         !this.state.collaborationVisible ? null :
                             <CollaborationView onclosed={this.handleOptionsViewClosed.bind(this, 'coauth')} />
                     }
-                    <ContextMenu openOptions={this.handleClickToOpenOptions.bind(this)} />
+                    {appOptions.isDocReady && <ContextMenu openOptions={this.handleClickToOpenOptions.bind(this)} />}   
+                    
                 </Page>
             </Fragment>
         )

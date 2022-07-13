@@ -1,7 +1,8 @@
-import React, {Fragment} from "react";
+import React, {Fragment, useState} from "react";
 import { observer, inject } from "mobx-react";
 import { Page, Navbar, List, ListItem, BlockTitle, Toggle, Icon } from "framework7-react";
 import { useTranslation } from "react-i18next";
+import { Themes } from '../../../../../common/mobile/lib/controller/Themes.js';
 
 const PageApplicationSettings = props => {
     const { t } = useTranslation();
@@ -20,6 +21,7 @@ const PageApplicationSettings = props => {
     const isRefStyle = storeApplicationSettings.isRefStyle;
     const isComments = storeApplicationSettings.isComments;
     const isResolvedComments = storeApplicationSettings.isResolvedComments;
+    const [isThemeDark, setIsThemeDark] = useState(Themes.isCurrentDark);
 
     const changeMeasureSettings = value => {
         storeApplicationSettings.changeUnitMeasurement(value);
@@ -47,7 +49,7 @@ const PageApplicationSettings = props => {
                     </List>
                     <BlockTitle>{_t.textFormulaLanguage}</BlockTitle>
                     <List mediaList>
-                        <ListItem title={currentFormulaLang.displayValue} subtitle={`Example: ${currentFormulaLang.exampleValue}`} link="/formula-languages/" 
+                        <ListItem title={currentFormulaLang.displayValue} subtitle={`${t('View.Settings.textExample')}: ${currentFormulaLang.exampleValue}`} link="/formula-languages/" 
                             routeProps={{
                                 onFormulaLangChange: props.onFormulaLangChange
                             }}>
@@ -55,7 +57,7 @@ const PageApplicationSettings = props => {
                     </List>
                     <BlockTitle>{_t.textRegionalSettings}</BlockTitle>
                     <List mediaList>
-                        <ListItem title={currentRegSetting.displayName} subtitle={`Example: ${regExample}`} link="/regional-settings/" routeProps={{
+                        <ListItem title={currentRegSetting.displayName} subtitle={`${t('View.Settings.textExample')}: ${regExample}`} link="/regional-settings/" routeProps={{
                             onRegSettings: props.onRegSettings
                         }}></ListItem>
                     </List>
@@ -63,19 +65,17 @@ const PageApplicationSettings = props => {
             }
                 <BlockTitle>{_t.textCommentingDisplay}</BlockTitle>
                 <List>
-                    <ListItem>
-                        <span>{_t.textComments}</span>
+                    <ListItem title={_t.textComments}>
                         <Toggle checked={isComments}
-                                onChange={() => {
+                                onToggleChange={() => {
                                     storeApplicationSettings.changeDisplayComments(!isComments);
                                     props.onChangeDisplayComments(!isComments);
                                 }}
                         />
                     </ListItem>
-                    <ListItem>
-                        <span>{_t.textResolvedComments}</span>
+                    <ListItem title={_t.textResolvedComments}>
                         <Toggle checked={isResolvedComments} disabled={!isComments}
-                                onChange={() => {
+                                onToggleChange={() => {
                                     storeApplicationSettings.changeDisplayResolved(!isResolvedComments);
                                     props.onChangeDisplayResolved(!isResolvedComments);
                                 }}
@@ -83,14 +83,18 @@ const PageApplicationSettings = props => {
                     </ListItem>
                 </List>
                 <List>
-                    <ListItem>
-                        <span>{_t.textR1C1Style}</span>
+                    <ListItem title={_t.textR1C1Style}>
                         <Toggle checked={isRefStyle}
-                                onChange={() => {
+                                onToggleChange={() => {
                                     storeApplicationSettings.changeRefStyle(!isRefStyle);
                                     props.clickR1C1Style(!isRefStyle);
                                 }}
                         />
+                    </ListItem>
+                    <ListItem title={t('View.Settings.textDarkTheme')}>
+                        <Toggle checked={isThemeDark}
+                            onToggleChange={toggle => {Themes.switchDarkTheme(!toggle), setIsThemeDark(!toggle)}}>
+                        </Toggle>
                     </ListItem>
                 </List>
             {/* } */}
@@ -147,7 +151,7 @@ const PageFormulaLanguage = props => {
             <List mediaList>
                 {dataLang.map((elem, index) => {
                     return (
-                        <ListItem radio key={index} title={elem.displayValue} subtitle={`Example: ${elem.exampleValue}`} checked={elem.value === formulaLang}
+                        <ListItem radio key={index} title={elem.displayValue} subtitle={`${t('View.Settings.textExample')}: ${elem.exampleValue}`} checked={elem.value === formulaLang}
                             onChange={() => {
                                 storeApplicationSettings.changeFormulaLang(elem.value);
                                 props.onFormulaLangChange(elem.value);

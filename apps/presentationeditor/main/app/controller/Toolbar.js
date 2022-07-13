@@ -52,6 +52,8 @@ define([
     'common/main/lib/view/SymbolTableDialog',
     'common/main/lib/util/define',
     'presentationeditor/main/app/collection/SlideThemes',
+    'presentationeditor/main/app/controller/Transitions',
+    'presentationeditor/main/app/controller/Animation',
     'presentationeditor/main/app/view/Toolbar',
     'presentationeditor/main/app/view/DateTimeDialog',
     'presentationeditor/main/app/view/HeaderFooterDialog',
@@ -128,6 +130,8 @@ define([
                     'insert:textart'    : this.onInsertTextart.bind(this),
                     'insert:shape'      : this.onInsertShape.bind(this),
                     'add:slide'         : this.onAddSlide.bind(this),
+                    'duplicate:slide'   : this.onDuplicateSlide.bind(this),
+                    'duplicate:check'   : this.onDuplicateCheck.bind(this),
                     'change:slide'      : this.onChangeSlide.bind(this),
                     'change:compact'    : this.onClickChangeCompact,
                     'add:chart'         : this.onSelectChart
@@ -160,7 +164,10 @@ define([
                             Asc.c_oAscFileType.ODP,
                             Asc.c_oAscFileType.PDFA,
                             Asc.c_oAscFileType.POTX,
-                            Asc.c_oAscFileType.OTP
+                            Asc.c_oAscFileType.OTP,
+                            Asc.c_oAscFileType.PPTM,
+                            Asc.c_oAscFileType.PNG,
+                            Asc.c_oAscFileType.JPG
                         ];
 
                         if ( !_format || _supported.indexOf(_format) < 0 )
@@ -171,8 +178,14 @@ define([
                     'go:editor': function() {
                         Common.Gateway.requestEditRights();
                     }
+                },
+                'ViewTab': {
+                    'toolbar:setcompact': this.onChangeCompactView.bind(this)
                 }
             });
+            Common.NotificationCenter.on('toolbar:collapse', _.bind(function () {
+                this.toolbar.collapse();
+            }, this));
 
             var me = this;
 
@@ -182,16 +195,20 @@ define([
                     btn_id = cmp.closest('button').attr('id');
                 if (btn_id===undefined)
                     btn_id = cmp.closest('.btn-group').attr('id');
+                if (btn_id===undefined)
+                    btn_id = cmp.closest('.combo-dataview').attr('id');
 
                 if (cmp.attr('id') != 'editor_sdk' && cmp_sdk.length<=0) {
                     if ( me.toolbar.btnsInsertText.pressed() && !me.toolbar.btnsInsertText.contains(btn_id) ||
-                            me.toolbar.btnsInsertShape.pressed() && !me.toolbar.btnsInsertShape.contains(btn_id) )
+                            me.toolbar.btnsInsertShape.pressed() && !me.toolbar.btnsInsertShape.contains(btn_id) ||
+                            me.toolbar.cmbInsertShape.isComboViewRecActive() && me.toolbar.cmbInsertShape.id !== btn_id)
                     {
                         me._isAddingShape         = false;
 
                         me._addAutoshape(false);
                         me.toolbar.btnsInsertShape.toggle(false, true);
                         me.toolbar.btnsInsertText.toggle(false, true);
+                        me.toolbar.cmbInsertShape.deactivateRecords();
                         Common.NotificationCenter.trigger('edit:complete', me.toolbar);
                     } else
                     if ( me.toolbar.btnsInsertShape.pressed() && me.toolbar.btnsInsertShape.contains(btn_id) ) {
@@ -211,6 +228,9 @@ define([
 
                 if ( this.toolbar.btnsInsertText.pressed() )
                     this.toolbar.btnsInsertText.toggle(false, true);
+
+                if ( this.toolbar.cmbInsertShape.isComboViewRecActive() )
+                    this.toolbar.cmbInsertShape.deactivateRecords();
 
                 $(document.body).off('mouseup', checkInsertAutoshape);
             };
@@ -301,8 +321,7 @@ define([
             toolbar.btnMarkers.menu.on('show:after',                    _.bind(this.onListShowAfter, this, 0, toolbar.mnuMarkersPicker));
             toolbar.btnNumbers.menu.on('show:after',                    _.bind(this.onListShowAfter, this, 1, toolbar.mnuNumbersPicker));
             toolbar.btnFontColor.on('click',                            _.bind(this.onBtnFontColor, this));
-            toolbar.mnuFontColorPicker.on('select',                     _.bind(this.onSelectFontColor, this));
-            $('#id-toolbar-menu-new-fontcolor').on('click',             _.bind(this.onNewFontColor, this));
+            toolbar.btnFontColor.on('color:select',                     _.bind(this.onSelectFontColor, this));
             toolbar.btnHighlightColor.on('click',                       _.bind(this.onBtnHighlightColor, this));
             toolbar.mnuHighlightColorPicker.on('select',                _.bind(this.onSelectHighlightColor, this));
             toolbar.mnuHighlightTransparent.on('click',                 _.bind(this.onHighlightTransparentClick, this));
@@ -684,7 +703,9 @@ define([
                 in_equation = false,
                 in_chart = false,
                 layout_index = -1,
-                no_columns = false;
+                no_columns = false,
+                in_smartart = false,
+                in_smartart_internal = false;
 
             while (++i < selectedObjects.length) {
                 type = selectedObjects[i].get_ObjectType();
@@ -719,6 +740,10 @@ define([
                             || shapetype=='curvedConnector3' || shapetype=='curvedConnector4' || shapetype=='curvedConnector5'
                             || shapetype=='straightConnector1')
                             no_columns = true;
+                        if (pr.get_FromSmartArt())
+                            in_smartart = true;
+                        if (pr.get_FromSmartArtInternal())
+                            in_smartart_internal = true;
                     }
                     if (type == Asc.c_oAscTypeSelectElement.Image || type == Asc.c_oAscTypeSelectElement.Table)
                         no_columns = true;
@@ -785,6 +810,21 @@ define([
                     this.toolbar.btnChangeSlide.mnuSlidePicker.options.layout_index = layout_index;
                 else
                     this.toolbar.btnChangeSlide.mnuSlidePicker = {options: {layout_index: layout_index}};
+            }
+
+            if (this._state.in_smartart !== in_smartart) {
+                this.toolbar.lockToolbar(PE.enumLock.inSmartart, in_smartart, {array: me.toolbar.paragraphControls});
+                this._state.in_smartart = in_smartart;
+            }
+
+            if (this._state.in_smartart_internal !== in_smartart_internal) {
+                this.toolbar.lockToolbar(PE.enumLock.inSmartartInternal, in_smartart_internal, {array: me.toolbar.paragraphControls});
+                this._state.in_smartart_internal = in_smartart_internal;
+
+                this.toolbar.mnuArrangeFront.setDisabled(in_smartart_internal);
+                this.toolbar.mnuArrangeBack.setDisabled(in_smartart_internal);
+                this.toolbar.mnuArrangeForward.setDisabled(in_smartart_internal);
+                this.toolbar.mnuArrangeBackward.setDisabled(in_smartart_internal);
             }
         },
 
@@ -886,6 +926,20 @@ define([
             }
         },
 
+        onDuplicateSlide: function() {
+            if ( this.api) {
+                this.api.DublicateSlide();
+
+                Common.NotificationCenter.trigger('edit:complete', this.toolbar);
+                Common.component.Analytics.trackEvent('ToolBar', 'Duplicate Slide');
+            }
+        },
+
+        onDuplicateCheck: function(menu) {
+            if (this.api)
+                menu.items[2].setDisabled(this.api.getCountPages()<1);
+        },
+
         onChangeSlide: function(type) {
             if (this.api) {
                 this.api.ChangeLayout(type);
@@ -955,7 +1009,7 @@ define([
         
         onPrint: function(e) {
             if (this.api)
-                this.api.asc_Print(new Asc.asc_CDownloadOptions(null, Common.Utils.isChrome || Common.Utils.isSafari || Common.Utils.isOpera || Common.Utils.isGecko && Common.Utils.firefoxVersion>86)); // if isChrome or isSafari or isOpera == true use asc_onPrintUrl event
+                this.api.asc_Print(new Asc.asc_CDownloadOptions(null, Common.Utils.isChrome || Common.Utils.isOpera || Common.Utils.isGecko && Common.Utils.firefoxVersion>86)); // if isChrome or isOpera == true use asc_onPrintUrl event
 
             Common.NotificationCenter.trigger('edit:complete', this.toolbar);
 
@@ -1218,7 +1272,6 @@ define([
                     !Common.Utils.ModalWindow.isVisible() &&
                     Common.UI.warning({
                         width: 500,
-                        closable: false,
                         msg: this.confirmAddFontName,
                         buttons: ['yes', 'no'],
                         primary: 'yes',
@@ -1271,18 +1324,17 @@ define([
 
                     if (!value) {
                         value = this._getApiTextSize();
-
-                        Common.UI.warning({
-                            msg: this.textFontSizeErr,
-                            callback: function() {
-                                _.defer(function(btn) {
-                                    $('input', combo.cmpEl).focus();
-                                })
-                            }
-                        });
-
+                        setTimeout(function(){
+                            Common.UI.warning({
+                                msg: me.textFontSizeErr,
+                                callback: function() {
+                                    _.defer(function(btn) {
+                                        $('input', combo.cmpEl).focus();
+                                    })
+                                }
+                            });
+                        }, 1);
                         combo.setRawValue(value);
-
                         e.preventDefault();
                         return false;
                     }
@@ -1581,7 +1633,7 @@ define([
                                 var checkUrl = value.replace(/ /g, '');
                                 if (!_.isEmpty(checkUrl)) {
                                     me.toolbar.fireEvent('insertimage', me.toolbar);
-                                    me.api.AddImageUrl(checkUrl);
+                                    me.api.AddImageUrl([checkUrl]);
 
                                     Common.component.Analytics.trackEvent('ToolBar', 'Image');
                                 } else {
@@ -1609,20 +1661,34 @@ define([
                     fileChoiceUrl: this.toolbar.mode.fileChoiceUrl.replace("{fileExt}", "").replace("{documentType}", "ImagesOnly")
                 })).on('selectfile', function(obj, file){
                     file && (file.c = type);
+                    !file.images && (file.images = [{fileType: file.fileType, url: file.url}]); // SelectFileDlg uses old format for inserting image
+                    file.url = null;
                     me.insertImage(file);
                 }).show();
             }
         },
 
         insertImageFromStorage: function(data) {
-            if (data && data.url && (!data.c || data.c=='add')) {
+            if (data && data._urls && (!data.c || data.c=='add')) {
                 this.toolbar.fireEvent('insertimage', this.toolbar);
-                this.api.AddImageUrl(data.url, undefined, data.token);// for loading from storage
+                (data._urls.length>0) && this.api.AddImageUrl(data._urls, undefined, data.token);// for loading from storage
                 Common.component.Analytics.trackEvent('ToolBar', 'Image');
             }
         },
 
         insertImage: function(data) { // gateway
+            if (data && (data.url || data.images)) {
+                data.url && console.log("Obsolete: The 'url' parameter of the 'insertImage' method is deprecated. Please use 'images' parameter instead.");
+
+                var arr = [];
+                if (data.images && data.images.length>0) {
+                    for (var i=0; i<data.images.length; i++) {
+                        data.images[i] && data.images[i].url && arr.push( data.images[i].url);
+                    }
+                } else
+                    data.url && arr.push(data.url);
+                data._urls = arr;
+            }
             Common.NotificationCenter.trigger('storage:image-insert', data);
         },
 
@@ -1871,11 +1937,7 @@ define([
             return out_value;
         },
 
-        onNewFontColor: function(picker, color) {
-            this.toolbar.mnuFontColorPicker.addNewColor();
-        },
-
-        onSelectFontColor: function(picker, color) {
+        onSelectFontColor: function(btn, color) {
             this._state.clrtext = this._state.clrtext_asccolor  = undefined;
 
             this.toolbar.btnFontColor.currentColor = color;
@@ -1965,7 +2027,8 @@ define([
             var me = this;
 
             if (h === 'menu') {
-                me.toolbar.mnuHighlightTransparent.setChecked(false);
+                me._state.clrhighlight = undefined;
+                me.onApiHighlightColor();
 
                 me.toolbar.btnHighlightColor.currentColor = strcolor;
                 me.toolbar.btnHighlightColor.setColor(me.toolbar.btnHighlightColor.currentColor);
@@ -2003,19 +2066,33 @@ define([
 
         onHighlightTransparentClick: function(item, e) {
             this._setMarkerColor('transparent', 'menu');
-            item.setChecked(true, true);
-            this.toolbar.btnHighlightColor.currentColor = 'transparent';
-            this.toolbar.btnHighlightColor.setColor(this.toolbar.btnHighlightColor.currentColor);
         },
 
         onResetAutoshapes: function () {
-            var me = this;
+            var me = this,
+                collection = PE.getCollection('ShapeGroups');
             var onShowBefore = function(menu) {
-                me.toolbar.updateAutoshapeMenu(menu, PE.getCollection('ShapeGroups'));
+                me.toolbar.updateAutoshapeMenu(menu, collection);
                 menu.off('show:before', onShowBefore);
             };
             me.toolbar.btnsInsertShape.forEach(function (btn, index) {
                 btn.menu.on('show:before', onShowBefore);
+            });
+            var onComboShowBefore = function (menu) {
+                me.toolbar.updateComboAutoshapeMenu(collection);
+                menu.off('show:before', onComboShowBefore);
+            }
+            me.toolbar.cmbInsertShape.openButton.menu.on('show:before', onComboShowBefore);
+            me.toolbar.cmbInsertShape.fillComboView(collection);
+            me.toolbar.cmbInsertShape.on('click', function (btn, record, cancel) {
+                if (cancel) {
+                    me._addAutoshape(false);
+                    return;
+                }
+                if (record) {
+                    me.toolbar.cmbInsertShape.updateComboView(record);
+                    me.onInsertShape(record.get('data').shapeType);
+                }
             });
         },
 
@@ -2403,19 +2480,31 @@ define([
                 } else
                 if ( config.customization && config.customization.compactToolbar )
                     compactview = true;
-            }
 
+            }
             me.toolbar.render(_.extend({compactview: compactview}, config));
 
-            var tab = {action: 'review', caption: me.toolbar.textTabCollaboration};
+            var tab = {action: 'review', caption: me.toolbar.textTabCollaboration, layoutname: 'toolbar-collaboration', dataHintTitle: 'U'};
             var $panel = me.getApplication().getController('Common.Controllers.ReviewChanges').createToolbarPanel();
             if ( $panel ) {
-                me.toolbar.addTab(tab, $panel, 3);
-                me.toolbar.setVisible('review', config.isEdit || config.canViewReview || config.canCoAuthoring && config.canComments);
+                me.toolbar.addTab(tab, $panel, 4);
+                me.toolbar.setVisible('review', (config.isEdit || config.canViewReview || config.canCoAuthoring && config.canComments) && Common.UI.LayoutManager.isElementVisible('toolbar-collaboration'));
             }
 
             if ( config.isEdit ) {
                 me.toolbar.setMode(config);
+
+                var transitController = me.getApplication().getController('Transitions');
+                transitController.setApi(me.api).setConfig({toolbar: me,mode:config}).createToolbarPanel();
+                Array.prototype.push.apply(me.toolbar.lockControls,transitController.getView().getButtons());
+                Array.prototype.push.apply(me.toolbar.slideOnlyControls,transitController.getView().getButtons());
+
+                var viewtab = me.getApplication().getController('ViewTab');
+                viewtab.setApi(me.api).setConfig({toolbar: me, mode: config});
+                Array.prototype.push.apply(me.toolbar.lockControls, viewtab.getView('ViewTab').getButtons());
+
+                var animationController = me.getApplication().getController('Animation');
+                animationController.setApi(me.api).setConfig({toolbar: me,mode:config}).createToolbarPanel();
 
                 me.toolbar.btnSave.on('disabled', _.bind(me.onBtnChangeState, me, 'save:disabled'));
 
@@ -2428,15 +2517,16 @@ define([
 
                     // move 'paste' button to the container instead of 'undo' and 'redo'
                     me.toolbar.btnPaste.$el.detach().appendTo($box);
+                    me.toolbar.btnPaste.$el.find('button').attr('data-hint-direction', 'bottom');
                     me.toolbar.btnCopy.$el.removeClass('split');
                 }
 
                 if ( config.isDesktopApp ) {
                     if ( config.canProtect ) { // don't add protect panel to toolbar
-                        tab = {action: 'protect', caption: me.toolbar.textTabProtect};
+                        tab = {action: 'protect', caption: me.toolbar.textTabProtect, layoutname: 'toolbar-protect', dataHintTitle: 'T'};
                         $panel = me.getApplication().getController('Common.Controllers.Protection').createToolbarPanel();
                         if ($panel)
-                            me.toolbar.addTab(tab, $panel, 4);
+                            me.toolbar.addTab(tab, $panel, 5);
                     }
                 }
             }
@@ -2449,7 +2539,7 @@ define([
             this.btnsComment = [];
             if ( config.canCoAuthoring && config.canComments ) {
                 var _set = PE.enumLock;
-                this.btnsComment = Common.Utils.injectButtons(this.toolbar.$el.find('.slot-comment'), 'tlbtn-addcomment-', 'toolbar__icon btn-menu-comments', me.toolbar.capBtnComment, [_set.lostConnect, _set.noSlides]);
+                this.btnsComment = Common.Utils.injectButtons(this.toolbar.$el.find('.slot-comment'), 'tlbtn-addcomment-', 'toolbar__icon btn-menu-comments', me.toolbar.capBtnComment, [_set.lostConnect, _set.noSlides], undefined, undefined, undefined, '1', 'bottom', 'small');
 
                 if ( this.btnsComment.length ) {
                     var _comments = PE.getController('Common.Controllers.Comments').getView();
@@ -2462,6 +2552,7 @@ define([
                         if (btn.cmpEl.closest('#review-changes-panel').length>0)
                             btn.setCaption(me.toolbar.capBtnAddComment);
                     }, this);
+
                     this.toolbar.lockToolbar(PE.enumLock.noSlides, this._state.no_slides, { array: this.btnsComment });
                 }
             }

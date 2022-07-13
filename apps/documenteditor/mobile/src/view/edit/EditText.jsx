@@ -1,10 +1,11 @@
-import React, {Fragment, useState } from 'react';
+import React, {Fragment, useEffect, useState } from 'react';
 import {observer, inject} from "mobx-react";
-import {f7, List, ListItem, Icon, Row, Button, Page, Navbar, NavRight, Segmented, BlockTitle, Link} from 'framework7-react';
+import {f7, Swiper, View, SwiperSlide, List, ListItem, Icon, Row, Button, Page, Navbar, NavRight, Segmented, BlockTitle, Link} from 'framework7-react';
 import { useTranslation } from 'react-i18next';
 import {Device} from '../../../../../common/mobile/utils/device';
-
 import { ThemeColorPalette, CustomColorPicker } from '../../../../../common/mobile/lib/component/ThemeColorPalette.jsx';
+import HighlightColorPalette from '../../../../../common/mobile/lib/component/HighlightColorPalette.jsx';
+import { LocalStorage } from '../../../../../common/mobile/utils/LocalStorage';
 
 const PageFonts = props => {
     const isAndroid = Device.android;
@@ -14,17 +15,47 @@ const PageFonts = props => {
     const displaySize = typeof size === 'undefined' ? t('Edit.textAuto') : size + ' ' + t('Edit.textPt');
     const curFontName = storeTextSettings.fontName;
     const fonts = storeTextSettings.fontsArray;
+    const iconWidth = storeTextSettings.iconWidth;
+    const iconHeight = storeTextSettings.iconHeight;
+    const thumbs = storeTextSettings.thumbs;
+    const thumbIdx = storeTextSettings.thumbIdx;
+    const thumbCanvas = storeTextSettings.thumbCanvas;
+    const thumbContext = storeTextSettings.thumbContext;
+    const spriteCols = storeTextSettings.spriteCols;
+    const spriteThumbs = storeTextSettings.spriteThumbs;
+    const arrayRecentFonts = storeTextSettings.arrayRecentFonts;
+
+    const addRecentStorage = () => {
+        setRecent(getImageUri(arrayRecentFonts));
+        LocalStorage.setItem('dde-settings-recent-fonts', JSON.stringify(arrayRecentFonts));
+    };
+
+    const getImageUri = fonts => {
+        return fonts.map(font => {
+            thumbContext.clearRect(0, 0, thumbs[thumbIdx].width, thumbs[thumbIdx].height);
+            thumbContext.drawImage(spriteThumbs, 0, -thumbs[thumbIdx].height * Math.floor(font.imgidx / spriteCols));
+
+            return thumbCanvas.toDataURL();
+        });
+    };
+
+    const [stateRecent, setRecent] = useState(() => getImageUri(arrayRecentFonts));
     const [vlFonts, setVlFonts] = useState({
         vlData: {
             items: [],
         }
     });
+
     const renderExternal = (vl, vlData) => {
         setVlFonts((prevState) => {
             let fonts = [...prevState.vlData.items];
             fonts.splice(vlData.fromIndex, vlData.toIndex, ...vlData.items);
+
+            let images = getImageUri(fonts);
+
             return {vlData: {
                     items: fonts,
+                    images,
                 }}
         });
     };
@@ -57,20 +88,32 @@ const PageFonts = props => {
                 </ListItem>
             </List>
             <BlockTitle>{t('Edit.textFonts')}</BlockTitle>
+            {!!arrayRecentFonts.length &&
+                <List>
+                    {arrayRecentFonts.map((item, index) => (
+                        <ListItem className="font-item" key={index} radio checked={curFontName === item.name} onClick={() => {
+                            storeTextSettings.changeFontFamily(item.name); 
+                            props.changeFontFamily(item.name);
+                        }}> 
+                            <img src={stateRecent[index]} style={{width: `${iconWidth}px`, height: `${iconHeight}px`}} />
+                        </ListItem>
+                    ))}
+                </List>
+            }
             <List virtualList virtualListParams={{
                 items: fonts,
                 renderExternal: renderExternal
             }}>
                 <ul>
                     {vlFonts.vlData.items.map((item, index) => (
-                        <ListItem
-                            key={index}
-                            radio
-                            checked={curFontName === item.name}
-                            title={item.name}
-                            style={{fontFamily: `${item.name}`}}
-                            onClick={() => {storeTextSettings.changeFontFamily(item.name); props.changeFontFamily(item.name)}}
-                        ></ListItem>
+                        <ListItem className="font-item" key={index} radio checked={curFontName === item.name} onClick={() => {
+                            storeTextSettings.changeFontFamily(item.name); 
+                            props.changeFontFamily(item.name);
+                            storeTextSettings.addFontToRecent(item); 
+                            addRecentStorage();
+                        }}>
+                            <img src={vlFonts.vlData.images[index]} style={{width: `${iconWidth}px`, height: `${iconHeight}px`}} />
+                        </ListItem>
                     ))}
                 </ul>
             </List>
@@ -137,7 +180,7 @@ const PageAdditionalFormatting = props => {
     )
 };
 
-const PageBullets = props => {
+const PageBullets = observer(props => {
     const { t } = useTranslation();
     const bulletArrays = [
         [
@@ -157,41 +200,31 @@ const PageBullets = props => {
     const typeBullets = storeTextSettings.typeBullets;
     
     return(
-        <Page className='bullets dataview'>
-            <Navbar title={t('Edit.textBullets')} backLink={t('Edit.textBack')}>
-                {Device.phone &&
-                    <NavRight>
-                        <Link sheetClose='#edit-sheet'>
-                            <Icon icon='icon-expand-down'/>
-                        </Link>
-                    </NavRight>
-                }
-            </Navbar>
+        <View className='bullets dataview'>
             {bulletArrays.map((bullets, index) => (
-                    <ul className="row" style={{listStyle: 'none'}} key={'bullets-' + index}>
+                    <List className="row" style={{listStyle: 'none'}} key={'bullets-' + index}>
                         {bullets.map((bullet) => (
-                            <li key={'bullet-' + bullet.type} data-type={bullet.type} className={bullet.type === typeBullets ? 'active' : ''}
+                            <ListItem key={'bullet-' + bullet.type} data-type={bullet.type} className={(bullet.type === typeBullets) && 
+                                (storeTextSettings.listType === 0 || storeTextSettings.listType === -1) ? 'active' : ''}
                                 onClick={() => {
-                                    if (bullet.type === -1) {
-                                        storeTextSettings.resetBullets(-1);
-                                    }
-                                    props.onBullet(bullet.type)
+                                    storeTextSettings.resetBullets(bullet.type);
+                                    props.onBullet(bullet.type);
                                 }}>
                                 {bullet.thumb.length < 1 ?
-                                    <div className="thumb" style={{position: 'relative'}}>
+                                    <Icon className="thumb" style={{position: 'relative'}}>
                                         <label>{t('Edit.textNone')}</label>
-                                    </div> :
-                                    <div className="thumb" style={{backgroundImage: `url('resources/img/bullets/${bullet.thumb}')`}}></div>
+                                    </Icon> :
+                                    <Icon className="thumb" style={{backgroundImage: `url('resources/img/bullets/${bullet.thumb}')`}}></Icon>
                                 }
-                            </li>
+                            </ListItem>
                         ))}
-                    </ul>
+                    </List>
             ))}
-        </Page>
+        </View>
     )
-};
+});
 
-const PageNumbers = props => {
+const PageNumbers = observer(props => {
     const { t } = useTranslation();
     const numberArrays = [
         [
@@ -207,11 +240,78 @@ const PageNumbers = props => {
             {type: 7, thumb: 'number-07.png'}
         ]
     ];
+
     const storeTextSettings = props.storeTextSettings;
     const typeNumbers = storeTextSettings.typeNumbers;
+    
     return(
-        <Page className='numbers dataview'>
-            <Navbar title={t('Edit.textNumbers')} backLink={t('Edit.textBack')}>
+        <View className='numbers dataview'>
+            {numberArrays.map((numbers, index) => (
+                <List className="row" style={{listStyle: 'none'}} key={'numbers-' + index}>
+                    {numbers.map((number) => (
+                        <ListItem key={'number-' + number.type} data-type={number.type} className={(number.type === typeNumbers) && 
+                            (storeTextSettings.listType === 1 || storeTextSettings.listType === -1) ? 'active' : ''}
+                            onClick={() => {
+                                storeTextSettings.resetNumbers(number.type);
+                                props.onNumber(number.type);
+                            }}>
+                            {number.thumb.length < 1 ?
+                                <Icon className="thumb" style={{position: 'relative'}}>
+                                    <label>{t('Edit.textNone')}</label>
+                                </Icon> :
+                                <Icon className="thumb" style={{backgroundImage: `url('resources/img/numbers/${number.thumb}')`}}></Icon>
+                            }
+                        </ListItem>
+                    ))}
+                </List>
+            ))}
+        </View>
+    )
+});
+
+const PageMultiLevel = observer(props => {
+    const { t } = useTranslation();
+    
+    const arrayMultiLevel = [
+        {type: -1, thumb: ''},
+        {type: 1, thumb: 'multi-bracket.png'},
+        {type: 2, thumb: 'multi-dot.png'},
+        {type: 3, thumb: 'multi-bullets.png'},
+    ];
+
+    const storeTextSettings = props.storeTextSettings;
+    const typeMultiLevel = storeTextSettings.typeMultiLevel;
+
+    return(
+        <View className='multilevels dataview'>
+                <List className="row" style={{listStyle: 'none'}}>
+                    {arrayMultiLevel.map((item) => (
+                        <ListItem 
+                        key={'multi-level-' + item.type} 
+                        data-type={item.type} 
+                        className={item.type === typeMultiLevel && storeTextSettings.listType === -1  ? 'active' : ''}
+                        onClick={() => props.onMultiLevelList(item.type)}>
+                            {item.thumb.length < 1 ?
+                                <Icon className="thumb" style={{position: 'relative'}}>
+                                    <label>{t('Edit.textNone')}</label>
+                                </Icon> :
+                                <Icon className="thumb" style={{backgroundImage: `url('resources/img/multilevels/${item.thumb}')`}}></Icon>
+                            }
+                        </ListItem>
+                    ))}
+                </List>
+        </View>
+    )
+        
+});
+
+const PageBulletsAndNumbers = props => {
+    const { t } = useTranslation();
+    const storeTextSettings = props.storeTextSettings;
+    
+    return (
+        <Page className="bullets-numbers">
+            <Navbar title={t('Edit.textBulletsAndNumbers')} backLink={t('Edit.textBack')}>
                 {Device.phone &&
                     <NavRight>
                         <Link sheetClose='#edit-sheet'>
@@ -220,29 +320,20 @@ const PageNumbers = props => {
                     </NavRight>
                 }
             </Navbar>
-            {numberArrays.map((numbers, index) => (
-                <ul className="row" style={{listStyle: 'none'}} key={'numbers-' + index}>
-                    {numbers.map((number) => (
-                        <li key={'number-' + number.type} data-type={number.type} className={number.type === typeNumbers ? 'active' : ''}
-                            onClick={() => {
-                                if (number.type === -1) {
-                                    storeTextSettings.resetNumbers(-1);
-                                }
-                                props.onNumber(number.type)
-                            }}>
-                            {number.thumb.length < 1 ?
-                                <div className="thumb" style={{position: 'relative'}}>
-                                    <label>{t('Edit.textNone')}</label>
-                                </div> :
-                                <div className="thumb" style={{backgroundImage: `url('resources/img/numbers/${number.thumb}')`}}></div>
-                            }
-                        </li>
-                    ))}
-                </ul>
-            ))}
+            <Swiper pagination>
+                <SwiperSlide> 
+                    <PageNumbers storeTextSettings={storeTextSettings} onNumber={props.onNumber} />
+                </SwiperSlide> 
+                <SwiperSlide>
+                    <PageBullets storeTextSettings={storeTextSettings} onBullet={props.onBullet} />
+                </SwiperSlide>
+                <SwiperSlide> 
+                    <PageMultiLevel storeTextSettings={storeTextSettings} onMultiLevelList={props.onMultiLevelList} />
+                </SwiperSlide>
+            </Swiper>
         </Page>
     )
-};
+}
 
 const PageLineSpacing = props => {
     const { t } = useTranslation();
@@ -376,24 +467,22 @@ const PageCustomBackColor = props => {
     )
 };
 
-const PageBackgroundColor = props => {
+const PageHighlightColor = props => {
     const { t } = useTranslation();
     const _t = t('Edit', {returnObjects: true});
-    const backgroundColor = props.storeTextSettings.backgroundColor;
-    const customColors = props.storePalette.customColors;
+    const highlightColor = props.storeTextSettings.highlightColor;
+
     const changeColor = (color, effectId) => {
         if (color !== 'empty') {
-            if (effectId !==undefined ) {
-                props.onBackgroundColor({color: color, effectId: effectId});
+            if (effectId !== undefined ) {
+                props.onHighlightColor({color: color, effectId: effectId});
             } else {
-                props.onBackgroundColor(color);
+                props.onHighlightColor(color);
             }
-        } else {
-            // open custom color menu
-            props.f7router.navigate('/edit-text-custom-back-color/', {props: {onBackgroundColor: props.onBackgroundColor}});
         }
     };
-    return(
+
+    return (
         <Page>
             <Navbar title={_t.textHighlightColor} backLink={_t.textBack}>
                 {Device.phone &&
@@ -404,12 +493,7 @@ const PageBackgroundColor = props => {
                     </NavRight>
                 }
             </Navbar>
-            <ThemeColorPalette changeColor={changeColor} curColor={backgroundColor} customColors={customColors} transparent={true}/>
-            <List>
-                <ListItem title={_t.textAddCustomColor} link={'/edit-text-custom-back-color/'} routeProps={{
-                    onBackgroundColor: props.onBackgroundColor
-                }}></ListItem>
-            </List>
+            <HighlightColorPalette changeColor={changeColor} curColor={highlightColor} />
         </Page>
     )
 };
@@ -421,7 +505,7 @@ const EditText = props => {
     const fontName = storeTextSettings.fontName || t('Edit.textFonts');
     const fontSize = storeTextSettings.fontSize;
     const fontColor = storeTextSettings.textColor;
-    const backgroundColor = storeTextSettings.backgroundColor;
+    const highlightColor = storeTextSettings.highlightColor;
     const displaySize = typeof fontSize === 'undefined' ? t('Edit.textAuto') : fontSize + ' ' + t('Edit.textPt');
     const isBold = storeTextSettings.isBold;
     const isItalic = storeTextSettings.isItalic;
@@ -429,9 +513,26 @@ const EditText = props => {
     const isStrikethrough = storeTextSettings.isStrikethrough;
     const paragraphAlign = storeTextSettings.paragraphAlign;
 
+    let previewList;
+    switch(storeTextSettings.listType) {
+        case -1: 
+            previewList = '';
+            break;
+        case 0: 
+            previewList = t('Edit.textBullets');
+            break;
+        case 1: 
+            previewList = t('Edit.textNumbers');
+            break;
+    }
+
     const fontColorPreview = fontColor !== 'auto' ?
         <span className="color-preview" style={{ background: `#${(typeof fontColor === "object" ? fontColor.color : fontColor)}`}}></span> :
         <span className="color-preview auto"></span>;
+
+    const highlightColorPreview = highlightColor !== 'transparent' ?
+        <span className="color-preview" style={{ background: `#${(typeof highlightColor === "object" ? highlightColor.color : highlightColor)}`}}></span> :
+        <span className="color-preview"></span>;
 
     return (
         <Fragment>
@@ -457,12 +558,11 @@ const EditText = props => {
                         fontColorPreview
                     }
                 </ListItem>
-                <ListItem title={t("Edit.textHighlightColor")} link="/edit-text-background-color/" routeProps={{
-                    onBackgroundColor: props.onBackgroundColor
+                <ListItem title={t("Edit.textHighlightColor")} link="/edit-text-highlight-color/" routeProps={{
+                    onHighlightColor: props.onHighlightColor
                 }}>
                     {!isAndroid ?
-                        <Icon slot="media" icon="icon-text-selection"><span className="color-preview" style={{ background: `#${backgroundColor}`}}></span></Icon> :
-                        <span className="color-preview" style={{ background: `#${(typeof backgroundColor === "object" ? backgroundColor.color : backgroundColor)}`}}></span>
+                        <Icon slot="media" icon="icon-text-selection">{highlightColorPreview}</Icon> : highlightColorPreview
                     }
                 </ListItem>
                 <ListItem title={t("Edit.textAdditionalFormatting")} link="/edit-text-add-formatting/" routeProps={{
@@ -501,15 +601,13 @@ const EditText = props => {
                         </a>
                     </Row>
                 </ListItem>
-                <ListItem title={t("Edit.textBullets")} link='/edit-text-bullets/' routeProps={{
-                    onBullet: props.onBullet
+                <ListItem title={t('Edit.textBulletsAndNumbers')} link='/edit-bullets-and-numbers/' routeProps={{
+                    onBullet: props.onBullet,
+                    onNumber: props.onNumber,
+                    onMultiLevelList: props.onMultiLevelList
                 }}>
+                    <div className="preview">{previewList}</div>
                     {!isAndroid && <Icon slot="media" icon="icon-bullets"></Icon>}
-                </ListItem>
-                <ListItem title={t("Edit.textNumbers")} link='/edit-text-numbers/' routeProps={{
-                    onNumber: props.onNumber
-                }}>
-                    {!isAndroid && <Icon slot="media" icon="icon-numbers"></Icon>}
                 </ListItem>
                 <ListItem title={t("Edit.textLineSpacing")} link='/edit-text-line-spacing/' routeProps={{
                     onLineSpacing: props.onLineSpacing
@@ -524,24 +622,20 @@ const EditText = props => {
 const EditTextContainer = inject("storeTextSettings", "storeFocusObjects")(observer(EditText));
 const PageTextFonts = inject("storeTextSettings", "storeFocusObjects")(observer(PageFonts));
 const PageTextAddFormatting = inject("storeTextSettings", "storeFocusObjects")(observer(PageAdditionalFormatting));
-const PageTextBullets = inject("storeTextSettings")(observer(PageBullets));
-const PageTextNumbers = inject("storeTextSettings")(observer(PageNumbers));
+const PageTextBulletsAndNumbers = inject("storeTextSettings")(observer(PageBulletsAndNumbers));
 const PageTextLineSpacing = inject("storeTextSettings")(observer(PageLineSpacing));
 const PageTextFontColor = inject("storeTextSettings", "storePalette")(observer(PageFontColor));
 const PageTextCustomFontColor = inject("storeTextSettings", "storePalette")(observer(PageCustomFontColor));
-const PageTextBackgroundColor = inject("storeTextSettings", "storePalette")(observer(PageBackgroundColor));
-const PageTextCustomBackColor = inject("storeTextSettings", "storePalette")(observer(PageCustomBackColor));
-
+const PageTextHighlightColor = inject("storeTextSettings")(observer(PageHighlightColor));
 
 export {
     EditTextContainer as EditText,
     PageTextFonts,
     PageTextAddFormatting,
-    PageTextBullets,
-    PageTextNumbers,
+    PageTextBulletsAndNumbers,
     PageTextLineSpacing,
     PageTextFontColor,
     PageTextCustomFontColor,
-    PageTextBackgroundColor,
-    PageTextCustomBackColor
+    PageTextHighlightColor,
+    // PageTextCustomBackColor
 };

@@ -1,5 +1,5 @@
 
-import React, { Fragment, useEffect, useState } from 'react';
+import React, { Fragment, useEffect, useRef, useState } from 'react';
 import {StatusbarView} from '../view/Statusbar';
 import { inject, observer } from 'mobx-react';
 import { f7 } from 'framework7-react';
@@ -19,15 +19,24 @@ const StatusbarController = inject('sheets', 'storeFocusObjects', 'users')(obser
                 sheets.setWorksheetLocked(index, locked);
                 storeFocusObjects.setIsLocked(api.asc_getCellInfo());
             });
+            api.asc_registerCallback('asc_onChangeProtectWorkbook', () => {
+                sheets.setProtectedWorkbook(api.asc_isProtectedWorkbook());
+            });
+            api.asc_registerCallback('asc_onEditCell', onApiEditCell);
             api.asc_registerCallback('asc_onSheetsChanged', onApiSheetsChanged);
             api.asc_registerCallback('asc_onActiveSheetChanged', onApiActiveSheetChanged);
             api.asc_registerCallback('asc_onHidePopMenu', onApiHideTabContextMenu);
             api.asc_registerCallback('asc_onUpdateTabColor', onApiUpdateTabColor);
-            // api.asc_registerCallback('asc_onCoAuthoringDisconnect', onApiDisconnect);
+            api.asc_registerCallback('asc_onCoAuthoringDisconnect', onApiDisconnect);
         });
         Common.Notifications.on('document:ready', onApiSheetsChanged);
-        // Common.Notifications.on('api:disconnect', onApiDisconnect);
+        Common.Notifications.on('api:disconnect', onApiDisconnect);
     });
+
+    const onApiEditCell = state => {
+        let isDisable = state !== Asc.c_oAscCellEditorState.editEnd;
+        sheets.setDisabledEditSheet(isDisable);
+    }
 
     const onApiDisconnect = () => {
         users.resetDisconnected(true);
@@ -123,6 +132,9 @@ const Statusbar = inject('sheets', 'storeAppOptions', 'users')(observer(props =>
     const _t = t('Statusbar', {returnObjects: true});
     const isEdit = storeAppOptions.isEdit;
     const isDisconnected = users.isDisconnected;
+    const isProtectedWorkbook = sheets.isProtectedWorkbook;
+    const isDisabledEditSheet = sheets.isDisabledEditSheet;
+    const targetRef = useRef();
 
     useEffect(() => {
         const on_main_view_click = e => {
@@ -172,6 +184,7 @@ const Statusbar = inject('sheets', 'storeAppOptions', 'users')(observer(props =>
     const onTabClick = (i, target) => {
         const api = Common.EditorApi.get();
         const model = sheets.at(i);
+        targetRef.current = target;
 
         let opened = $$('.document-menu.modal-in').length;
         let index = model.index;
@@ -180,7 +193,7 @@ const Statusbar = inject('sheets', 'storeAppOptions', 'users')(observer(props =>
 
         if (index == api.asc_getActiveWorksheetIndex()) {
             if (!opened) {
-                if (isEdit && !sheets.isWorkbookLocked) {
+                if (isEdit && !isDisconnected && !model.locked && !isProtectedWorkbook && !isDisabledEditSheet) {
                     api.asc_closeCellEditor();
                     f7.popover.open('#idx-tab-context-menu-popover', target);
                 }
@@ -229,7 +242,7 @@ const Statusbar = inject('sheets', 'storeAppOptions', 'users')(observer(props =>
             let current = api.asc_getWorksheetName(api.asc_getActiveWorksheetIndex());
 
             f7.dialog.create({
-                title: _t.textRenameSheet,
+                title: _t.textSheetName,
                 content: Device.ios ?
                     '<div class="input-field"><input type="text" name="modal-sheet-name" maxlength="31" value="' + current + '" placeholder="' + _t.textSheetName + '" class="modal-text-input"></div>' : 
                     '<div class="item-content item-input" style="margin-top: 15px; position: relative; padding-bottom: 10px;"><div class="item-inner"><div class="item-input-wrap" style="min-height: initial; width: 100%;"><input type="text" style="width: 100%;" name="modal-sheet-name" value="' + current + '" maxlength="31" placeholder="' + _t.textSheetName + '" /></div></div></div>',
@@ -321,6 +334,9 @@ const Statusbar = inject('sheets', 'storeAppOptions', 'users')(observer(props =>
                 api.asc_copyWorksheet(index, name);
                 break;
             case 'ren': renameWorksheet(); break;
+            case 'move': 
+                Device.phone ? f7.sheet.open('.move-sheet') : f7.popover.open('#idx-move-sheet-popover', targetRef.current); 
+                break;
             case 'unhide':
                 f7.popover.open('#idx-hidden-sheets-popover', '.active');
                 break;
@@ -335,12 +351,31 @@ const Statusbar = inject('sheets', 'storeAppOptions', 'users')(observer(props =>
         }
     };
 
+    const onMenuMoveClick = (index) => {
+        const api = Common.EditorApi.get();
+
+        let sheetsCount = api.asc_getWorksheetsCount();
+        let activeIndex = api.asc_getActiveWorksheetIndex();
+
+        api.asc_moveWorksheet(index === -255 ? sheetsCount : index , [activeIndex]);
+    };
+
+    const onTabListClick = (sheetIndex) => {
+        const api = Common.EditorApi.get();
+        if(api && api.asc_getActiveWorksheetIndex() !== sheetIndex) {
+            api.asc_showWorksheet(sheetIndex);
+            f7.popover.close('#idx-all-list');
+        }
+    };
+
     return (
         <StatusbarView 
             onTabClick={onTabClick}
             onTabClicked={onTabClicked}
             onAddTabClicked={onAddTabClicked}
             onTabMenu={onTabMenu}
+            onTabListClick={onTabListClick}
+            onMenuMoveClick = {onMenuMoveClick}
         />
     )
 }));

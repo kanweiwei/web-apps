@@ -127,6 +127,7 @@ define([
             this.api = api;
             if (this.api) {
                 this.api.asc_registerCallback('asc_onUpdateChartStyles', _.bind(this._onUpdateChartStyles, this));
+                this.api.asc_registerCallback('asc_onAddChartStylesPreview', _.bind(this.onAddChartStylesPreview, this));
             }
             return this;
         },
@@ -134,6 +135,11 @@ define([
         ChangeSettings: function(props) {
             if (this._initSettings)
                 this.createDelayedElements();
+
+            if (this._isEditType) {
+                this._props = props;
+                return;
+            }
 
             this.ShowHideElem(!!(props && props.asc_getChartProperties && props.asc_getChartProperties()));
             this.disableControls(this._locked);
@@ -157,7 +163,7 @@ define([
                     if (this._state.ChartType !== type) {
                         this.ShowCombinedProps(type);
                         !(type===null || type==Asc.c_oAscChartTypeSettings.comboBarLine || type==Asc.c_oAscChartTypeSettings.comboBarLineSecondary ||
-                        type==Asc.c_oAscChartTypeSettings.comboAreaBar || type==Asc.c_oAscChartTypeSettings.comboCustom) && this.updateChartStyles(this.api.asc_getChartPreviews(type));
+                        type==Asc.c_oAscChartTypeSettings.comboAreaBar || type==Asc.c_oAscChartTypeSettings.comboCustom) && this.updateChartStyles(this.api.asc_getChartPreviews(type, undefined, true));
                         this._state.ChartType = type;
                     }
 
@@ -171,23 +177,9 @@ define([
                         } else {
                             value = this.chartProps.getStyle();
                             if (this._state.ChartStyle!==value || this._isChartStylesChanged) {
-                                this.cmbChartStyle.suspendEvents();
-                                var rec = this.cmbChartStyle.menuPicker.store.findWhere({data: value});
-                                if (rec)
-                                    this.cmbChartStyle.menuPicker.selectRecord(rec);
-                                else {
-                                    this.cmbChartStyle.fieldPicker.deselectAll();
-                                    this.cmbChartStyle.menuPicker.deselectAll();
-                                }
-                                this.cmbChartStyle.resumeEvents();
-
-                                if (this._isChartStylesChanged) {
-                                    if (rec)
-                                        this.cmbChartStyle.fillComboView(this.cmbChartStyle.menuPicker.getSelectedRec(),true);
-                                    else
-                                        this.cmbChartStyle.fillComboView(this.cmbChartStyle.menuPicker.store.at(0), false);
-                                }
                                 this._state.ChartStyle=value;
+                                var arr = this.selectCurrentChartStyle();
+                                this._isChartStylesChanged && this.api.asc_generateChartPreviews(this._state.ChartType, arr);
                             }
                         }
                         this._isChartStylesChanged = false;
@@ -609,7 +601,10 @@ define([
                 defaultUnit : "cm",
                 value: '3 cm',
                 maxValue: 55.88,
-                minValue: 0
+                minValue: 0,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.spinners.push(this.spnWidth);
             this.lockedControls.push(this.spnWidth);
@@ -621,7 +616,10 @@ define([
                 defaultUnit : "cm",
                 value: '3 cm',
                 maxValue: 55.88,
-                minValue: 0
+                minValue: 0,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.spinners.push(this.spnHeight);
             this.lockedControls.push(this.spnHeight);
@@ -637,7 +635,10 @@ define([
                 iconCls: 'toolbar__icon advanced-btn-ratio',
                 style: 'margin-bottom: 1px;',
                 enableToggle: true,
-                hint: this.textKeepRatio
+                hint: this.textKeepRatio,
+                dataHint: '1',
+                dataHintDirection: 'bottom',
+                dataHintOffset: 'big'
             });
             this.lockedControls.push(this.btnRatio);
 
@@ -671,7 +672,8 @@ define([
                     allowScrollbar: false,
                     groups: new Common.UI.DataViewGroupStore(Common.define.chartData.getSparkGroupData()),
                     store: new Common.UI.DataViewStore(Common.define.chartData.getSparkData()),
-                    itemTemplate: _.template('<div id="<%= id %>" class="item-chartlist"><svg width="40" height="40" class=\"icon\"><use xlink:href=\"#chart-<%= iconCls %>\"></use></svg></div>')
+                    itemTemplate: _.template('<div id="<%= id %>" class="item-chartlist"><svg width="40" height="40" class=\"icon\"><use xlink:href=\"#chart-<%= iconCls %>\"></use></svg></div>'),
+                    delayRenderTips: true
                 });
             });
             this.btnSparkType.render($('#spark-button-type'));
@@ -738,7 +740,10 @@ define([
                 cls         : 'btn-toolbar',
                 iconCls     : 'toolbar__icon btn-menu-chart',
                 caption     : this.textChangeType,
-                style       : 'width: 100%;text-align: left;'
+                style       : 'width: 100%;text-align: left;',
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.btnChangeType.on('click', _.bind(this.onChangeType, this));
             this.lockedControls.push(this.btnChangeType);
@@ -748,7 +753,10 @@ define([
                 cls         : 'btn-toolbar',
                 iconCls     : 'toolbar__icon btn-select-range',
                 caption     : this.textSelectData,
-                style       : 'width: 100%;text-align: left;'
+                style       : 'width: 100%;text-align: left;',
+                dataHint    : '1',
+                dataHintDirection: 'left',
+                dataHintOffset: 'small'
             });
             this.btnSelectData.on('click', _.bind(this.onSelectData, this));
             this.lockedControls.push(this.btnSelectData);
@@ -935,12 +943,14 @@ define([
                             if (result == 'ok') {
                                 props.endEdit();
                                 me._isEditType = false;
+                                me._props && me.ChangeSettings(me._props);
                             }
                             Common.NotificationCenter.trigger('edit:complete', me);
                         }
                     }).on('close', function() {
                         me._isEditType && props.cancelEdit();
                         me._isEditType = false;
+                        me._props = null;
                     });
                     win.show();
                 }
@@ -959,11 +969,53 @@ define([
             Common.NotificationCenter.trigger('edit:complete', this);
         },
 
+        selectCurrentChartStyle: function() {
+            if (!this.cmbChartStyle) return;
+
+            this.cmbChartStyle.suspendEvents();
+            var rec = this.cmbChartStyle.menuPicker.store.findWhere({data: this._state.ChartStyle});
+            this.cmbChartStyle.menuPicker.selectRecord(rec);
+            this.cmbChartStyle.resumeEvents();
+
+            if (this._isChartStylesChanged) {
+                var currentRecords;
+                if (rec)
+                    currentRecords = this.cmbChartStyle.fillComboView(this.cmbChartStyle.menuPicker.getSelectedRec(), true);
+                else
+                    currentRecords = this.cmbChartStyle.fillComboView(this.cmbChartStyle.menuPicker.store.at(0), true);
+                if (currentRecords && currentRecords.length>0) {
+                    var arr = [];
+                    _.each(currentRecords, function(style, index){
+                        arr.push(style.get('data'));
+                    });
+                    return arr;
+                }
+            }
+        },
+
+        onAddChartStylesPreview: function(styles){
+            if (this._isEditType || !this.cmbChartStyle) return;
+
+            if (styles && styles.length>0){
+                var stylesStore = this.cmbChartStyle.menuPicker.store;
+                if (stylesStore) {
+                    _.each(styles, function(item, index){
+                        var rec = stylesStore.findWhere({
+                            data: item.asc_getName()
+                        });
+                        rec && rec.set('imageUrl', item.asc_getImage());
+                    });
+                }
+            }
+        },
+
         _onUpdateChartStyles: function() {
             if (this.api && this._state.ChartType!==null && this._state.ChartType>-1 &&
                 !(this._state.ChartType==Asc.c_oAscChartTypeSettings.comboBarLine || this._state.ChartType==Asc.c_oAscChartTypeSettings.comboBarLineSecondary ||
-                this._state.ChartType==Asc.c_oAscChartTypeSettings.comboAreaBar || this._state.ChartType==Asc.c_oAscChartTypeSettings.comboCustom))
-                this.updateChartStyles(this.api.asc_getChartPreviews(this._state.ChartType));
+                this._state.ChartType==Asc.c_oAscChartTypeSettings.comboAreaBar || this._state.ChartType==Asc.c_oAscChartTypeSettings.comboCustom)) {
+                this.updateChartStyles(this.api.asc_getChartPreviews(this._state.ChartType, undefined, true));
+                this.api.asc_generateChartPreviews(this._state.ChartType, this.selectCurrentChartStyle());
+            }
         },
 
         updateChartStyles: function(styles) {
@@ -976,7 +1028,11 @@ define([
                     itemHeight: 50,
                     menuMaxHeight: 270,
                     enableKeyEvents: true,
-                    cls: 'combo-chart-style'
+                    cls: 'combo-chart-style',
+                    dataHint: '1',
+                    dataHintDirection: 'bottom',
+                    dataHintOffset: 'big',
+                    delayRenderTips: true
                 });
                 this.cmbChartStyle.render($('#chart-combo-style'));
                 this.cmbChartStyle.openButton.menu.cmpEl.css({
@@ -993,24 +1049,15 @@ define([
             if (styles && styles.length>0){
                 var stylesStore = this.cmbChartStyle.menuPicker.store;
                 if (stylesStore) {
-                    var count = stylesStore.length;
-                    if (count>0 && count==styles.length) {
-                        var data = stylesStore.models;
-                        _.each(styles, function(style, index){
-                            data[index].set('imageUrl', style.asc_getImage());
+                    var stylearray = [];
+                    _.each(styles, function(item, index){
+                        stylearray.push({
+                            imageUrl: item.asc_getImage(),
+                            data    : item.asc_getName(),
+                            tip     : me.textStyle + ' ' + item.asc_getName()
                         });
-                    } else {
-                        var stylearray = [],
-                            selectedIdx = -1;
-                        _.each(styles, function(item, index){
-                            stylearray.push({
-                                imageUrl: item.asc_getImage(),
-                                data    : item.asc_getName(),
-                                tip     : me.textStyle + ' ' + item.asc_getName()
-                            });
-                        });
-                        stylesStore.reset(stylearray, {silent: false});
-                    }
+                    });
+                    stylesStore.reset(stylearray, {silent: false});
                 }
             } else {
                 this.cmbChartStyle.menuPicker.store.reset();
@@ -1028,7 +1075,8 @@ define([
                     itemHeight: 50,
                     menuMaxHeight: 272,
                     enableKeyEvents: true,
-                    cls: 'combo-spark-style'
+                    cls: 'combo-spark-style',
+                    delayRenderTips: true
                 });
                 this.cmbSparkStyle.render($('#spark-combo-style'));
                 this.cmbSparkStyle.openButton.menu.cmpEl.css({

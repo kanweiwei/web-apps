@@ -219,6 +219,8 @@ define([
             };
 
             var onContextMenu = function(event){
+                if (Common.UI.HintManager.isHintVisible())
+                    Common.UI.HintManager.clearHints();
                 _.delay(function(){
                     if (event.get_Type() == Asc.c_oAscContextMenuTypes.Thumbnails) {
                         showPopupMenu.call(me, (me.mode.isEdit && !me._isDisabled) ? me.slideMenu : me.viewModeMenuSlide, {isSlideSelect: event.get_IsSlideSelect(), isSlideHidden: event.get_IsSlideHidden(), fromThumbs: true}, event);
@@ -303,7 +305,8 @@ define([
                     }
                     if (key == Common.UI.Keys.ESC) {
                         Common.UI.Menu.Manager.hideAll();
-                        Common.NotificationCenter.trigger('leftmenu:change', 'hide');
+                        if (!Common.UI.HintManager.isHintVisible())
+                            Common.NotificationCenter.trigger('leftmenu:change', 'hide');
                     }
                 }
             };
@@ -351,7 +354,8 @@ define([
                     addEvent(me.el, eventname, handleDocumentWheel);
                 }
 
-                $(document).on('mousewheel', handleDocumentWheel);
+                !Common.Utils.isChrome ? $(document).on('mousewheel', handleDocumentWheel) :
+                    document.addEventListener('mousewheel', handleDocumentWheel, {passive: false});
                 $(document).on('keydown', handleDocumentKeyDown);
                 $(window).on('resize', onDocumentHolderResize);
                 var viewport = PE.getController('Viewport').getView('Viewport');
@@ -366,6 +370,14 @@ define([
                         return AscCommon.UserInfoParser.getParsedName(rec.get('username'));
                 }
                 return me.guestText;
+            };
+            var isUserVisible = function(id){
+                if (usersStore){
+                    var rec = usersStore.findUser(id);
+                    if (rec)
+                        return !rec.get('hidden');
+                }
+                return true;
             };
             /** coauthoring end **/
 
@@ -436,12 +448,30 @@ define([
                     /** coauthoring end **/
                     me.hideTips();
                     onDocumentHolderResize();
+                },
+                'preview:show': function(e){
+                    me.isPreviewVisible = true;
+                    screenTip && (screenTip.tipLength = -1); // redraw link tip
+                },
+                'preview:hide': function(e){
+                    me.isPreviewVisible = false;
+                    screenTip && (screenTip.tipLength = -1);  // redraw link tip
                 }
             });
 
             var onHyperlinkClick = function(url) {
-                if (url /*&& me.api.asc_getUrlType(url)>0*/) {
-                    window.open(url);
+                if (url) {
+                    if (me.api.asc_getUrlType(url)>0)
+                        window.open(url);
+                    else
+                        Common.UI.warning({
+                            msg: me.txtWarnUrl,
+                            buttons: ['yes', 'no'],
+                            primary: 'yes',
+                            callback: function(btn) {
+                                (btn == 'yes') && window.open(url);
+                            }
+                        });
                 }
             };
 
@@ -495,15 +525,15 @@ define([
                                 ToolTip = ToolTip.substr(0, 256) + '...';
 
                             if (screenTip.tipLength !== ToolTip.length || screenTip.strTip.indexOf(ToolTip)<0 ) {
-                                screenTip.toolTip.setTitle(ToolTip + '<br><b>' + me.txtPressLink + '</b>');
+                                screenTip.toolTip.setTitle(ToolTip + (me.isPreviewVisible ? '' : '<br><b>' + me.txtPressLink + '</b>'));
                                 screenTip.tipLength = ToolTip.length;
                                 screenTip.strTip = ToolTip;
                                 recalc = true;
                             }
 
                             showPoint = [moveData.get_X(), moveData.get_Y()];
-                            showPoint[1] += (me._XY[1]-15);
-                            showPoint[0] += (me._XY[0]+5);
+                            showPoint[1] += ((me.isPreviewVisible ? 0 : me._XY[1])-15);
+                            showPoint[0] += ((me.isPreviewVisible ? 0 : me._XY[0])+5);
 
                             if (!screenTip.isVisible || recalc) {
                                 screenTip.isVisible = true;
@@ -515,13 +545,15 @@ define([
                                 screenTip.tipWidth = screenTip.toolTip.getBSTip().$tip.width();
                             }
                             showPoint[1] -= screenTip.tipHeight;
+                            if (showPoint[1]<0)
+                                showPoint[1] = 0;
                             if (showPoint[0] + screenTip.tipWidth > me._BodyWidth )
                                 showPoint[0] = me._BodyWidth - screenTip.tipWidth;
                             screenTip.toolTip.getBSTip().$tip.css({top: showPoint[1] + 'px', left: showPoint[0] + 'px'});
                         }
                     }
                     /** coauthoring begin **/
-                    else if (moveData.get_Type()==2 && me.mode.isEdit) { // 2 - locked object
+                    else if (moveData.get_Type()==2 && me.mode.isEdit && isUserVisible(moveData.get_UserId())) { // 2 - locked object
                         var src;
                         if (me.usertipcount >= me.usertips.length) {
                             src = $(document.createElement("div"));
@@ -555,6 +587,8 @@ define([
             };
 
             var onShowForeignCursorLabel = function(UserId, X, Y, color) {
+                if (!isUserVisible(UserId)) return;
+
                 /** coauthoring begin **/
                 var src;
                 for (var i=0; i<me.fastcoauthtips.length; i++) {
@@ -1470,7 +1504,7 @@ define([
 
             var onApiStartDemonstration = function() {
                 if (me.slidesCount>0) {
-                    Common.NotificationCenter.trigger('preview:start', 0);
+                    Common.NotificationCenter.trigger('preview:start', 0, null, true);
                 }
             };
 
@@ -1856,7 +1890,7 @@ define([
                 if (me.api){
                     var printopt = new Asc.asc_CAdjustPrint();
                     printopt.asc_setPrintType(Asc.c_oAscPrintType.Selection);
-                    var opts = new Asc.asc_CDownloadOptions(null, Common.Utils.isChrome || Common.Utils.isSafari || Common.Utils.isOpera || Common.Utils.isGecko && Common.Utils.firefoxVersion>86); // if isChrome or isSafari or isOpera == true use asc_onPrintUrl event
+                    var opts = new Asc.asc_CDownloadOptions(null, Common.Utils.isChrome || Common.Utils.isOpera || Common.Utils.isGecko && Common.Utils.firefoxVersion>86); // if isChrome or isOpera == true use asc_onPrintUrl event
                     opts.asc_setAdvancedOptions(printopt);
                     me.api.asc_Print(opts);
                     me.fireEvent('editcomplete', me);
@@ -1962,11 +1996,33 @@ define([
                 if (me.api){
                     var printopt = new Asc.asc_CAdjustPrint();
                     printopt.asc_setPrintType(Asc.c_oAscPrintType.Selection);
-                    var opts = new Asc.asc_CDownloadOptions(null, Common.Utils.isChrome || Common.Utils.isSafari || Common.Utils.isOpera || Common.Utils.isGecko && Common.Utils.firefoxVersion>86); // if isChrome or isSafari or isOpera == true use asc_onPrintUrl event
+                    var opts = new Asc.asc_CDownloadOptions(null, Common.Utils.isChrome || Common.Utils.isOpera || Common.Utils.isGecko && Common.Utils.firefoxVersion>86); // if isChrome or isOpera == true use asc_onPrintUrl event
                     opts.asc_setAdvancedOptions(printopt);
                     me.api.asc_Print(opts);
                     me.fireEvent('editcomplete', me);
                     Common.component.Analytics.trackEvent('DocumentHolder', 'Print Selection');
+                }
+            });
+
+            var mnuMoveSlideToStart = new  Common.UI.MenuItem({
+                caption: me.txtMoveSlidesToStart
+            }).on('click', function(item){
+                if (me.api) {
+                    me.api.asc_moveSelectedSlidesToStart();
+
+                    me.fireEvent('editcomplete', me);
+                    Common.component.Analytics.trackEvent('DocumentHolder', 'Move Slide to Start');
+                }
+            });
+
+            var mnuMoveSlideToEnd = new  Common.UI.MenuItem({
+                caption: me.txtMoveSlidesToEnd
+            }).on('click', function(item){
+                if (me.api) {
+                    me.api.asc_moveSelectedSlidesToEnd();
+
+                    me.fireEvent('editcomplete', me);
+                    Common.component.Analytics.trackEvent('DocumentHolder', 'Move Slide to End');
                 }
             });
 
@@ -1997,9 +2053,14 @@ define([
                 }
             });
 
+
+
             me.slideMenu = new Common.UI.Menu({
                 cls: 'shifted-right',
+                restoreHeightAndTop: true,
                 initMenu: function(value) {
+                    var selectedLast = me.api.asc_IsLastSlideSelected(),
+                        selectedFirst = me.api.asc_IsFirstSlideSelected();
                     menuSlidePaste.setVisible(value.fromThumbs!==true);
                     me.slideMenu.items[1].setVisible(value.fromThumbs===true); // New Slide
                     me.slideMenu.items[2].setVisible(value.isSlideSelect===true); // Duplicate Slide
@@ -2012,10 +2073,16 @@ define([
                     mnuChangeTheme.setVisible(value.isSlideSelect===true || value.fromThumbs!==true);
                     menuSlideSettings.setVisible(value.isSlideSelect===true || value.fromThumbs!==true);
                     menuSlideSettings.options.value = null;
-
-                    for (var i = 10; i < 15; i++) {
+                    me.slideMenu.items[13].setVisible((!selectedLast || !selectedFirst) && value.isSlideSelect===true);
+                    mnuMoveSlideToEnd.setVisible(!selectedLast && value.isSlideSelect===true);
+                    mnuMoveSlideToStart.setVisible(!selectedFirst && value.isSlideSelect===true);
+                    me.slideMenu.items[16].setVisible(value.fromThumbs===true);
+                    me.slideMenu.items[17].setVisible(value.fromThumbs===true);
+                    
+                    for (var i = 10; i < 13; i++) {
                         me.slideMenu.items[i].setVisible(value.fromThumbs===true);
                     }
+
                     mnuPrintSelection.setVisible(me.mode.canPrint && value.fromThumbs===true);
 
                     var selectedElements = me.api.getSelectedElements(),
@@ -2081,6 +2148,9 @@ define([
                     {caption: '--'},
                     mnuSelectAll,
                     mnuPrintSelection,
+                    {caption: '--'},
+                    mnuMoveSlideToStart,
+                    mnuMoveSlideToEnd,
                     {caption: '--'},
                     mnuPreview
                 ]
@@ -2641,56 +2711,64 @@ define([
                 Common.component.Analytics.trackEvent('DocumentHolder', 'Ungroup Image');
             });
 
+            var mnuArrangeFront = new Common.UI.MenuItem({
+                caption     : this.textArrangeFront,
+                iconCls     : 'menu__icon arrange-front'
+            }).on('click', function(item) {
+                if (me.api) {
+                    me.api.shapes_bringToFront();
+                }
+
+                me.fireEvent('editcomplete', me);
+                Common.component.Analytics.trackEvent('DocumentHolder', 'Bring To Front');
+            });
+
+            var mnuArrangeBack = new Common.UI.MenuItem({
+                caption     : this.textArrangeBack,
+                iconCls     : 'menu__icon arrange-back'
+            }).on('click', function(item) {
+                if (me.api) {
+                    me.api.shapes_bringToBack();
+                }
+
+                me.fireEvent('editcomplete', me);
+                Common.component.Analytics.trackEvent('DocumentHolder', 'Bring To Back');
+            });
+
+            var mnuArrangeForward = new Common.UI.MenuItem({
+                caption     : this.textArrangeForward,
+                iconCls     : 'menu__icon arrange-forward'
+            }).on('click', function(item) {
+                if (me.api) {
+                    me.api.shapes_bringForward();
+                }
+
+                me.fireEvent('editcomplete', me);
+                Common.component.Analytics.trackEvent('DocumentHolder', 'Send Forward');
+            });
+
+            var mnuArrangeBackward = new Common.UI.MenuItem({
+                caption     : this.textArrangeBackward,
+                iconCls     : 'menu__icon arrange-backward'
+            }).on('click', function(item) {
+                if (me.api) {
+                    me.api.shapes_bringBackward();
+                }
+
+                me.fireEvent('editcomplete', me);
+                Common.component.Analytics.trackEvent('DocumentHolder', 'Send Backward');
+            });
+
             var menuImgShapeArrange = new Common.UI.MenuItem({
                 caption     : me.txtArrange,
                 menu        : new Common.UI.Menu({
                     cls: 'shifted-right',
                     menuAlign: 'tl-tr',
                     items: [
-                        new Common.UI.MenuItem({
-                            caption     : this.textArrangeFront,
-                            iconCls     : 'menu__icon arrange-front'
-                        }).on('click', function(item) {
-                            if (me.api) {
-                                me.api.shapes_bringToFront();
-                            }
-
-                            me.fireEvent('editcomplete', me);
-                            Common.component.Analytics.trackEvent('DocumentHolder', 'Bring To Front');
-                        }),
-                        new Common.UI.MenuItem({
-                            caption     : this.textArrangeBack,
-                            iconCls     : 'menu__icon arrange-back'
-                        }).on('click', function(item) {
-                            if (me.api) {
-                                me.api.shapes_bringToBack();
-                            }
-
-                            me.fireEvent('editcomplete', me);
-                            Common.component.Analytics.trackEvent('DocumentHolder', 'Bring To Back');
-                        }),
-                        new Common.UI.MenuItem({
-                            caption     : this.textArrangeForward,
-                            iconCls     : 'menu__icon arrange-forward'
-                        }).on('click', function(item) {
-                            if (me.api) {
-                                me.api.shapes_bringForward();
-                            }
-
-                            me.fireEvent('editcomplete', me);
-                            Common.component.Analytics.trackEvent('DocumentHolder', 'Send Forward');
-                        }),
-                        new Common.UI.MenuItem({
-                            caption     : this.textArrangeBackward,
-                            iconCls     : 'menu__icon arrange-backward'
-                        }).on('click', function(item) {
-                            if (me.api) {
-                                me.api.shapes_bringBackward();
-                            }
-
-                            me.fireEvent('editcomplete', me);
-                            Common.component.Analytics.trackEvent('DocumentHolder', 'Send Backward');
-                        }),
+                        mnuArrangeFront,
+                        mnuArrangeBack,
+                        mnuArrangeForward,
+                        mnuArrangeBackward,
                         {caption: '--'},
                         mnuGroupImg,
                         mnuUnGroupImg
@@ -3099,6 +3177,16 @@ define([
                 caption     : me.addToLayoutText
             }).on('click', _.bind(me.addToLayout, me));
 
+            var menuImgEditPoints = new Common.UI.MenuItem({
+                caption: me.textEditPoints
+            }).on('click', function(item) {
+                me.api && me.api.asc_editPointsGeometry();
+            });
+
+            var menuImgEditPointsSeparator = new Common.UI.MenuItem({
+                caption     : '--'
+            });
+
             me.textMenu = new Common.UI.Menu({
                 cls: 'shifted-right',
                 initMenu: function(value){
@@ -3256,6 +3344,7 @@ define([
 
             me.tableMenu = new Common.UI.Menu({
                 cls: 'shifted-right',
+                restoreHeightAndTop: true,
                 initMenu: function(value){
                     // table properties
                     if (_.isUndefined(value.tableProps))
@@ -3469,6 +3558,7 @@ define([
 
             me.pictureMenu = new Common.UI.Menu({
                 cls: 'shifted-right',
+                restoreHeightAndTop: true,
                 initMenu: function(value){
                     if (me.api) {
                         mnuUnGroupImg.setDisabled(!me.api.canUnGroup());
@@ -3480,11 +3570,20 @@ define([
                         shapedisabled = (value.shapeProps!==undefined && value.shapeProps.locked),
                         chartdisabled = (value.chartProps!==undefined && value.chartProps.locked),
                         disabled = imgdisabled || shapedisabled || chartdisabled || (value.slideProps!==undefined && value.slideProps.locked),
-                        pluginGuid = (value.imgProps) ? value.imgProps.value.asc_getPluginGuid() : null;
+                        pluginGuid = (value.imgProps) ? value.imgProps.value.asc_getPluginGuid() : null,
+                        inSmartartInternal = value.shapeProps && value.shapeProps.value.get_FromSmartArtInternal();
+
+                    mnuArrangeFront.setDisabled(inSmartartInternal);
+                    mnuArrangeBack.setDisabled(inSmartartInternal);
+                    mnuArrangeForward.setDisabled(inSmartartInternal);
+                    mnuArrangeBackward.setDisabled(inSmartartInternal);
 
                     menuImgShapeRotate.setVisible(_.isUndefined(value.chartProps) && (pluginGuid===null || pluginGuid===undefined));
-                    if (menuImgShapeRotate.isVisible())
-                        menuImgShapeRotate.setDisabled(disabled);
+                    if (menuImgShapeRotate.isVisible()) {
+                        menuImgShapeRotate.setDisabled(disabled || (value.shapeProps && value.shapeProps.value.get_FromSmartArt()));
+                        menuImgShapeRotate.menu.items[3].setDisabled(inSmartartInternal);
+                        menuImgShapeRotate.menu.items[4].setDisabled(inSmartartInternal);
+                    }
 
                     // image properties
                     menuImgOriginalSize.setVisible(isimage);
@@ -3499,6 +3598,11 @@ define([
                     me.menuImgCrop.setVisible(me.api.asc_canEditCrop());
                     if (me.menuImgCrop.isVisible())
                         me.menuImgCrop.setDisabled(disabled);
+
+                    var canEditPoints = me.api && me.api.asc_canEditGeometry();
+                    menuImgEditPoints.setVisible(canEditPoints);
+                    menuImgEditPointsSeparator.setVisible(canEditPoints);
+                    canEditPoints && menuImgEditPoints.setDisabled(disabled);
 
                     menuImageAdvanced.setVisible(isimage);
                     menuShapeAdvanced.setVisible(_.isUndefined(value.imgProps)   && _.isUndefined(value.chartProps));
@@ -3523,12 +3627,16 @@ define([
 
                     menuImgCut.setDisabled(disabled);
                     menuImgPaste.setDisabled(disabled);
+                    menuImgShapeArrange.setDisabled(disabled);
+                    menuAddToLayoutImg.setDisabled(disabled);
                 },
                 items: [
                     menuImgCut,
                     menuImgCopy,
                     menuImgPaste,
                     { caption: '--' },
+                    menuImgEditPoints,
+                    menuImgEditPointsSeparator,
                     menuImgShapeArrange,
                     menuImgShapeAlign,
                     menuImgShapeRotate,
@@ -3630,7 +3738,7 @@ define([
                             var checkUrl = value.replace(/ /g, '');
                             if (!_.isEmpty(checkUrl)) {
                                 if (placeholder)
-                                    me.api.AddImageUrl(checkUrl, undefined, undefined, obj);
+                                    me.api.AddImageUrl([checkUrl], undefined, undefined, obj);
                                 else {
                                     var props = new Asc.asc_CImgProperty();
                                     props.put_ImageUrl(checkUrl);
@@ -3951,7 +4059,11 @@ define([
         addToLayoutText: 'Add to Layout',
         txtResetLayout: 'Reset Slide',
         mniCustomTable: 'Insert Custom Table',
-        textFromStorage: 'From Storage'
+        textFromStorage: 'From Storage',
+        txtWarnUrl: 'Clicking this link can be harmful to your device and data.<br>Are you sure you want to continue?',
+        textEditPoints: 'Edit Points',
+        txtMoveSlidesToEnd: 'Move Slide to End',
+        txtMoveSlidesToStart: 'Move Slide to Beginning'
 
     }, PE.Views.DocumentHolder || {}));
 });

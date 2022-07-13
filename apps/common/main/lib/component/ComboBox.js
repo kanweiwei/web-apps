@@ -87,12 +87,15 @@ define([
                 valueField  : 'value',
                 search      : false,
                 scrollAlwaysVisible: false,
-                takeFocusOnClose: false
+                takeFocusOnClose: false,
+                dataHint: '',
+                dataHintDirection: '',
+                dataHintOffset: ''
             },
 
             template: _.template([
                 '<span class="input-group combobox <%= cls %>" id="<%= id %>" style="<%= style %>">',
-                    '<input type="text" class="form-control" spellcheck="false">',
+                    '<input type="text" class="form-control" spellcheck="false"  data-hint="<%= dataHint %>" data-hint-direction="<%= dataHintDirection %>" data-hint-offset="<%= dataHintOffset %>">',
                     '<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">',
                         '<span class="caret"></span>',
                     '</button>',
@@ -147,7 +150,10 @@ define([
                         menuCls     : this.menuCls,
                         menuStyle   : this.menuStyle,
                         items       : items,
-                        scope       : me
+                        scope       : me,
+                        dataHint    : this.options.dataHint,
+                        dataHintDirection: this.options.dataHintDirection,
+                        dataHintOffset: this.options.dataHintOffset
                     }));
                     if (this.itemsTemplate)
                         this.cmpEl.find('ul').html(
@@ -184,6 +190,7 @@ define([
                         el.on('click', '.form-control', _.bind(this.onInputClick, this));
                         this._input.attr('readonly', 'readonly');
                         this._input.attr('data-can-copy', false);
+                        this._input.on('mousedown',function (e){e.preventDefault();})
                     }
 
                     if (me.options.hint) {
@@ -538,6 +545,7 @@ define([
             },
 
             setDisabled: function(disabled) {
+                disabled = !!disabled;
                 this.disabled = disabled;
 
                 if (!this.rendered)
