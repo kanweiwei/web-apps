@@ -789,6 +789,10 @@
         return '{{PRODUCT_VERSION}}';
     };
 
+    DocsAPI.createEditorConnector = function(frameId, autoconnect) {
+        return window.Asc.EditorConnector ? new window.Asc.EditorConnector(frameId, autoconnect) : undefined;
+    };
+
     MessageDispatcher = function(fn, scope) {
         var _fn     = fn,
             _scope  = scope || window,
